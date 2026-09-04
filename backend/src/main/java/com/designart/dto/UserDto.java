@@ -1,0 +1,19 @@
+package com.designart.dto;
+
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+@Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+public class UserDto {
+    private Long id;
+    private String username;
+    private String nomeCompleto;
+    private String email;
+    private String cargo;
+    private String role;
+}

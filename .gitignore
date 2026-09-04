@@ -1,0 +1,29 @@
+# Node / Angular
+**/node_modules/
+**/.angular/
+**/dist/
+frontend/dist/
+frontend/.angular/
+frontend/node_modules/
+
+# Java / Maven
+**/target/
+backend/target/
+*.class
+*.jar
+*.war
+*.ear
+
+# IDEs & System
+.idea/
+.vscode/
+*.iml
+.DS_Store
+Thumbs.db
+*.log
+
+# Temp & Secrets
+.env
+.env.local
+scratch/
+test_*.ps1
