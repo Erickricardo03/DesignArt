@@ -75,6 +75,37 @@ npm start
 
 ---
 
+## 🌐 Como Fazer Deploy no Render (Passo a Passo)
+
+O repositório já inclui o arquivo `render.yaml` (Blueprint) e o `Dockerfile` otimizado para o Java 21!
+
+### Método 1: Automático via Blueprint (Recomendado)
+1. Acesse o [Dashboard do Render](https://dashboard.render.com).
+2. Clique no botão **"New +"** no canto superior direito e selecione **"Blueprint"**.
+3. Conecte sua conta do GitHub e selecione o repositório `Erickricardo03/DesignArt`.
+4. O Render detectará automaticamente o arquivo `render.yaml` e criará os 2 serviços:
+   - **`designart-api`** (Backend Docker Java 21)
+   - **`designart-web`** (Frontend Angular Static Site com redirecionamento SPA)
+5. Clique em **"Apply"** e aguarde a conclusão da publicação!
+
+### Método 2: Manual no Render
+
+#### 1. Backend (Web Service)
+- **Tipo**: *Web Service*
+- **Repositório**: `Erickricardo03/DesignArt`
+- **Root Directory**: `backend`
+- **Ambiente/Runtime**: `Docker`
+- **Porta**: `8080`
+
+#### 2. Frontend (Static Site)
+- **Tipo**: *Static Site*
+- **Repositório**: `Erickricardo03/DesignArt`
+- **Build Command**: `cd frontend && npm install && npm run build`
+- **Publish Directory**: `frontend/dist/frontend-app/browser`
+- **Redirects/Rewrites**: Adicione uma regra `/* -> /index.html` (Rewrite, 200).
+
+---
+
 ## ✨ Funcionalidades
 
 1. **Dashboard & Indicadores**:

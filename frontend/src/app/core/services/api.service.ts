@@ -1,6 +1,7 @@
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpHeaders, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
+import { getApiBaseUrl } from './api-config';
 import {
   Tarefa,
   Roteiro,
@@ -18,7 +19,9 @@ import {
   providedIn: 'root',
 })
 export class ApiService {
-  private baseUrl = 'http://localhost:8080/api';
+  private get baseUrl(): string {
+    return getApiBaseUrl();
+  }
 
   constructor(private http: HttpClient) {}
 

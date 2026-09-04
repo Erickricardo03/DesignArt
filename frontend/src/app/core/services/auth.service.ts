@@ -1,13 +1,16 @@
 import { Injectable, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable, tap, of, catchError } from 'rxjs';
+import { getApiBaseUrl } from './api-config';
 import { LoginResponse, User } from '../models';
 
 @Injectable({
   providedIn: 'root',
 })
 export class AuthService {
-  private apiUrl = 'http://localhost:8080/api/auth';
+  private get apiUrl(): string {
+    return `${getApiBaseUrl()}/auth`;
+  }
   currentUser = signal<User | null>(null);
   token = signal<string | null>(null);
 

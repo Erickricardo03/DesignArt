@@ -1,0 +1,29 @@
+services:
+  # ==========================================
+  # 1. BACKEND API (Spring Boot + Java 21)
+  # ==========================================
+  - type: web
+    name: designart-api
+    runtime: docker
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    plan: free
+    region: oregon
+    envVars:
+      - key: PORT
+        value: 8080
+
+  # ==========================================
+  # 2. FRONTEND (Angular Standalone SPA)
+  # ==========================================
+  - type: web
+    name: designart-web
+    runtime: static
+    buildCommand: cd frontend && npm install && npm run build
+    staticPublishPath: ./frontend/dist/frontend-app/browser
+    plan: free
+    region: oregon
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
