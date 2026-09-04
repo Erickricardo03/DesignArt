@@ -16,8 +16,9 @@ services:
   # ==========================================
   # 2. FRONTEND (Angular Standalone SPA)
   # ==========================================
-  - type: static
+  - type: web
     name: designart-web
+    runtime: static
     buildCommand: cd frontend && npm install && npm run build
     staticPublishPath: ./frontend/dist/frontend-app/browser
     routes:
