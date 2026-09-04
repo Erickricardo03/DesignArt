@@ -23,7 +23,7 @@ services:
     staticPublishPath: ./frontend/dist/frontend-app/browser
     envVars:
       - key: NODE_VERSION
-        value: 20.18.0
+        value: 22.22.3
     routes:
       - type: rewrite
         source: /*
