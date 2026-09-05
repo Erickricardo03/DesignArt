@@ -1,9 +1,10 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, OnInit, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterModule } from '@angular/router';
 import { AuthService } from '../../core/services/auth.service';
 import { ThemeService } from '../../core/services/theme.service';
+import { getApiBaseUrl, setApiBaseUrl, resetApiBaseUrl, isCustomApiUrlSet, getDefaultApiUrl } from '../../core/services/api-config';
 
 @Component({
   selector: 'app-login',
@@ -11,8 +12,20 @@ import { ThemeService } from '../../core/services/theme.service';
   imports: [CommonModule, FormsModule, RouterModule],
   template: `
     <div class="login-wrapper">
-      <!-- Theme Switcher Floating -->
-      <div class="theme-switcher-top">
+      <!-- Top Actions: Status, API Config & Theme Switcher -->
+      <div class="top-bar-controls">
+        <!-- Badge de Status do Backend -->
+        <button 
+          class="status-pill-btn" 
+          (click)="abrirModalConfig()"
+          [title]="'Clique para ver detalhes do backend ou configurar URL'"
+        >
+          <span class="status-indicator-dot" [ngClass]="statusDotClass()"></span>
+          <span class="status-label-text">{{ statusLabel() }}</span>
+          <i class="bi bi-gear-fill config-mini-icon"></i>
+        </button>
+
+        <!-- Theme Switcher -->
         <button class="btn-theme" (click)="themeService.toggleTheme()" [title]="themeService.isDarkMode() ? 'Mudar para Modo Claro' : 'Mudar para Modo Escuro'">
           <i class="bi" [ngClass]="themeService.isDarkMode() ? 'bi-moon-stars-fill' : 'bi-sun-fill'"></i>
           <span>{{ themeService.isDarkMode() ? 'Modo Escuro' : 'Modo Claro' }}</span>
@@ -30,19 +43,37 @@ import { ThemeService } from '../../core/services/theme.service';
             
             <div class="security-badge">
               <i class="bi bi-shield-check"></i>
-              <span>ACESSO SEGURO</span>
+              <span>ACESSO SEGURO &middot; PRODUÇÃO & METAS</span>
             </div>
 
             <h3 class="welcome-heading">Bem-vindo ao sistema</h3>
             <p class="welcome-text">
-              Acesse sua unidade com segurança para acompanhar atendimentos, relatórios, roteiros e rotinas administrativas.
+              Acesse com segurança para gerenciar roteiros no set, demandas de lojas parceiras, relatórios mensais e vendas de fotos.
             </p>
+
+            <div class="quick-profile-chips">
+              <span class="chips-title">Acesso rápido por perfil:</span>
+              <div class="chips-grid">
+                <button type="button" class="chip-btn" (click)="selecionarPerfil('admin')">
+                  <i class="bi bi-person-badge-fill"></i>
+                  <span>Admin</span>
+                </button>
+                <button type="button" class="chip-btn" (click)="selecionarPerfil('lucas.matheus')">
+                  <i class="bi bi-camera-reels-fill"></i>
+                  <span>Lucas (Roteiros)</span>
+                </button>
+                <button type="button" class="chip-btn" (click)="selecionarPerfil('edyllaine.silva')">
+                  <i class="bi bi-chat-square-heart-fill"></i>
+                  <span>Edyllaine (Mídias)</span>
+                </button>
+              </div>
+            </div>
           </div>
           
           <div class="banner-footer-decor">
             <a routerLink="/" class="back-home-link">
               <i class="bi bi-arrow-left"></i>
-              <span>Voltar ao Início</span>
+              <span>Voltar à Página Inicial</span>
             </a>
           </div>
         </div>
@@ -50,9 +81,22 @@ import { ThemeService } from '../../core/services/theme.service';
         <!-- Lado Direito: Formulário de Autenticação -->
         <div class="login-right-form">
           <div class="form-header">
-            <span class="auth-tag">IDENTIFICAÇÃO</span>
+            <div class="d-flex align-items-center justify-content-between mb-1">
+              <span class="auth-tag">IDENTIFICAÇÃO DE EQUIPE</span>
+              <button type="button" class="btn-api-settings" (click)="abrirModalConfig()" title="Configurar URL do Backend">
+                <i class="bi bi-sliders2"></i> Servidor API
+              </button>
+            </div>
             <h2>Entrar no sistema</h2>
-            <p>Informe login e senha para continuar.</p>
+            <p>Informe seu login e senha cadastrados para continuar.</p>
+          </div>
+
+          <!-- Mensagem de Alerta ou Dica de Conexão -->
+          <div *ngIf="backendStatus() === 'cold_start'" class="alert-info-box">
+            <i class="bi bi-info-circle-fill"></i>
+            <div>
+              <strong>Servidor gratuito no Render iniciando:</strong> O backend em nuvem pode levar até 50 segundos para despertar na primeira requisição. Você também pode entrar imediatamente no <em>Modo Demonstração</em>.
+            </div>
           </div>
 
           <form (ngSubmit)="onLogin()" class="login-form">
@@ -97,18 +141,101 @@ import { ThemeService } from '../../core/services/theme.service';
             </div>
 
             <div class="quick-credentials-hint">
-              <i class="bi bi-info-circle-fill"></i>
-              <span>Usuário padrão: <strong>admin</strong> | Senha: <strong>admin</strong></span>
+              <i class="bi bi-shield-lock-fill"></i>
+              <span>Padrão inicial: <strong>admin</strong> | Senha: <strong>admin</strong></span>
             </div>
 
-            <button type="submit" class="btn btn-primary btn-submit" [disabled]="loading()">
-              <span *ngIf="!loading()">Entrar &rarr;</span>
-              <span *ngIf="loading()">Autenticando...</span>
+            <button type="submit" class="btn btn-primary btn-submit mb-2" [disabled]="loading()">
+              <span *ngIf="!loading()">Entrar no Sistema &rarr;</span>
+              <span *ngIf="loading()" class="d-flex align-items-center justify-content-center gap-2">
+                <span class="spinner-border-sm"></span> Conectando...
+              </span>
+            </button>
+
+            <!-- Botão de Acesso Imediato / Offline -->
+            <button 
+              type="button" 
+              class="btn btn-secondary btn-demo-access" 
+              (click)="onDemoLogin()"
+              [disabled]="loading()"
+              title="Acessa imediatamente sem aguardar o cold-start do servidor em nuvem"
+            >
+              <i class="bi bi-lightning-charge-fill text-warning"></i>
+              <span>Acessar Imediato (Modo Demonstração / Offline)</span>
             </button>
           </form>
 
           <div class="login-footer-info">
-            <span>Versão 3.0.2 atualizada</span>
+            <span>Versão 3.1.0 &middot; Design Arte Produções</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Modal de Configuração do Backend / API URL -->
+      <div *ngIf="showConfigModal()" class="modal-overlay" (click)="fecharModalConfig()">
+        <div class="modal-card" (click)="$event.stopPropagation()">
+          <div class="modal-header">
+            <div class="d-flex align-items-center gap-2">
+              <i class="bi bi-hdd-network-fill text-primary" style="font-size: 1.3rem;"></i>
+              <h3 class="modal-title m-0">Configuração de Servidor API</h3>
+            </div>
+            <button class="btn-close-modal" (click)="fecharModalConfig()">&times;</button>
+          </div>
+
+          <div class="modal-body">
+            <p class="modal-description">
+              Configure o endereço do backend (API Spring Boot). Se estiver rodando no Render ou localmente, você pode definir a URL personalizada aqui.
+            </p>
+
+            <div class="form-group mb-3">
+              <label class="form-label">URL DA API BACKEND</label>
+              <div class="input-with-icon">
+                <i class="bi bi-link-45deg"></i>
+                <input 
+                  type="text" 
+                  class="form-control" 
+                  [(ngModel)]="tempApiUrl" 
+                  placeholder="https://seu-servico-api.onrender.com/api"
+                />
+              </div>
+              <small class="text-muted d-block mt-1">
+                Padrão atual: <code>{{ defaultUrl }}</code>
+              </small>
+            </div>
+
+            <!-- Resultado do Teste de Conexão -->
+            <div *ngIf="testResult()" class="test-result-box" [ngClass]="testResult()!.online ? 'result-success' : 'result-error'">
+              <i class="bi" [ngClass]="testResult()!.online ? 'bi-check-circle-fill' : 'bi-exclamation-triangle-fill'"></i>
+              <div>
+                <strong>{{ testResult()!.online ? 'Conexão Estabelecida com Sucesso!' : 'Falha ao Conectar' }}</strong>
+                <p class="m-0 text-small">
+                  {{ testResult()!.online ? ('Latência: ' + testResult()!.latencyMs + 'ms') : testResult()!.error }}
+                </p>
+              </div>
+            </div>
+
+            <div class="quick-url-presets mt-3">
+              <span class="presets-label">Atalhos rápidos:</span>
+              <div class="presets-buttons">
+                <button type="button" class="btn btn-sm btn-outline" (click)="tempApiUrl = defaultUrl">
+                  Padrão em Nuvem
+                </button>
+                <button type="button" class="btn btn-sm btn-outline" (click)="tempApiUrl = 'http://localhost:8080/api'">
+                  Localhost:8080
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" (click)="testarConexao()" [disabled]="testingConnection()">
+              <span *ngIf="!testingConnection()"><i class="bi bi-activity"></i> Testar Conexão</span>
+              <span *ngIf="testingConnection()">Testando...</span>
+            </button>
+            <div class="d-flex gap-2">
+              <button type="button" class="btn btn-ghost" (click)="restaurarPadrao()">Restaurar</button>
+              <button type="button" class="btn btn-primary" (click)="salvarConfig()">Salvar e Conectar</button>
+            </div>
           </div>
         </div>
       </div>
@@ -121,27 +248,85 @@ import { ThemeService } from '../../core/services/theme.service';
       align-items: center;
       justify-content: center;
       background-color: var(--bg-app);
-      padding: 2rem 1rem;
+      padding: 2.5rem 1rem;
       position: relative;
     }
 
-    .theme-switcher-top {
+    .top-bar-controls {
       position: absolute;
-      top: 1.5rem;
+      top: 1.25rem;
       right: 1.5rem;
       z-index: 10;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .status-pill-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.45rem;
+      padding: 0.5rem 0.85rem;
+      border-radius: var(--radius-full);
+      background: var(--bg-surface);
+      border: 1px solid var(--border-color);
+      color: var(--text-primary);
+      font-size: 0.8rem;
+      font-weight: 600;
+      cursor: pointer;
+      box-shadow: var(--shadow-sm);
+      transition: all 0.2s;
+    }
+
+    .status-pill-btn:hover {
+      background: var(--bg-surface-elevated);
+      border-color: var(--color-primary);
+    }
+
+    .status-indicator-dot {
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .dot-green {
+      background: #10B981;
+      box-shadow: 0 0 8px rgba(16, 185, 129, 0.6);
+    }
+
+    .dot-yellow {
+      background: #F59E0B;
+      box-shadow: 0 0 8px rgba(245, 158, 11, 0.6);
+      animation: pulse 1.5s infinite;
+    }
+
+    .dot-gray {
+      background: #94A3B8;
+    }
+
+    @keyframes pulse {
+      0% { opacity: 0.4; }
+      50% { opacity: 1; }
+      100% { opacity: 0.4; }
+    }
+
+    .config-mini-icon {
+      font-size: 0.75rem;
+      opacity: 0.6;
+      margin-left: 0.2rem;
     }
 
     .btn-theme {
       display: flex;
       align-items: center;
       gap: 0.5rem;
-      padding: 0.6rem 1rem;
+      padding: 0.5rem 0.85rem;
       border-radius: var(--radius-full);
       background: var(--bg-surface);
       border: 1px solid var(--border-color);
       color: var(--text-primary);
-      font-size: 0.85rem;
+      font-size: 0.8rem;
       font-weight: 600;
       cursor: pointer;
       box-shadow: var(--shadow-sm);
@@ -155,8 +340,8 @@ import { ThemeService } from '../../core/services/theme.service';
 
     .login-card-container {
       width: 100%;
-      max-width: 950px;
-      min-height: 560px;
+      max-width: 980px;
+      min-height: 600px;
       display: flex;
       background: var(--bg-surface);
       border: 1px solid var(--border-color);
@@ -168,9 +353,9 @@ import { ThemeService } from '../../core/services/theme.service';
     /* Left Banner */
     .login-left-banner {
       flex: 1;
-      background: linear-gradient(145deg, #4338CA 0%, #312E81 100%);
+      background: linear-gradient(145deg, #3730A3 0%, #1E1B4B 100%);
       color: #FFFFFF;
-      padding: 3.5rem 2.5rem;
+      padding: 3rem 2.5rem;
       display: flex;
       flex-direction: column;
       justify-content: space-between;
@@ -181,7 +366,7 @@ import { ThemeService } from '../../core/services/theme.service';
       content: '';
       position: absolute;
       inset: 0;
-      background: radial-gradient(circle at top right, rgba(99, 102, 241, 0.4), transparent 60%);
+      background: radial-gradient(circle at top right, rgba(99, 102, 241, 0.35), transparent 70%);
       pointer-events: none;
     }
 
@@ -206,7 +391,7 @@ import { ThemeService } from '../../core/services/theme.service';
     .brand-title {
       font-size: 2rem;
       font-weight: 800;
-      margin-bottom: 2rem;
+      margin-bottom: 1.5rem;
       color: #FFFFFF;
     }
 
@@ -215,24 +400,66 @@ import { ThemeService } from '../../core/services/theme.service';
       align-items: center;
       gap: 0.4rem;
       padding: 0.35rem 0.85rem;
-      background: rgba(255, 255, 255, 0.15);
+      background: rgba(255, 255, 255, 0.12);
       border-radius: var(--radius-full);
-      font-size: 0.725rem;
+      font-size: 0.7rem;
       font-weight: 800;
       letter-spacing: 0.08em;
       margin-bottom: 1.25rem;
     }
 
     .welcome-heading {
-      font-size: 1.5rem;
+      font-size: 1.45rem;
       margin-bottom: 0.75rem;
       color: #FFFFFF;
     }
 
     .welcome-text {
       color: rgba(255, 255, 255, 0.85);
-      font-size: 0.95rem;
+      font-size: 0.9rem;
       line-height: 1.6;
+      margin-bottom: 1.5rem;
+    }
+
+    .quick-profile-chips {
+      margin-top: 1rem;
+    }
+
+    .chips-title {
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: rgba(255, 255, 255, 0.7);
+      display: block;
+      margin-bottom: 0.5rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .chips-grid {
+      display: flex;
+      flex-direction: column;
+      gap: 0.4rem;
+    }
+
+    .chip-btn {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.5rem 0.85rem;
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: var(--radius-md);
+      color: #FFFFFF;
+      font-size: 0.8rem;
+      font-weight: 600;
+      cursor: pointer;
+      text-align: left;
+      transition: all 0.15s;
+    }
+
+    .chip-btn:hover {
+      background: rgba(255, 255, 255, 0.2);
+      transform: translateX(4px);
     }
 
     .back-home-link {
@@ -251,15 +478,15 @@ import { ThemeService } from '../../core/services/theme.service';
 
     /* Right Form */
     .login-right-form {
-      flex: 1.1;
-      padding: 3.5rem 3rem;
+      flex: 1.15;
+      padding: 3rem 2.5rem;
       display: flex;
       flex-direction: column;
       justify-content: space-between;
     }
 
     .form-header {
-      margin-bottom: 2rem;
+      margin-bottom: 1.5rem;
     }
 
     .auth-tag {
@@ -268,18 +495,59 @@ import { ThemeService } from '../../core/services/theme.service';
       letter-spacing: 0.1em;
       color: var(--color-primary);
       display: block;
-      margin-bottom: 0.35rem;
+    }
+
+    .btn-api-settings {
+      background: transparent;
+      border: 1px solid var(--border-color);
+      padding: 0.3rem 0.65rem;
+      border-radius: var(--radius-md);
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      transition: all 0.2s;
+    }
+
+    .btn-api-settings:hover {
+      color: var(--color-primary);
+      border-color: var(--color-primary);
+      background: var(--bg-surface-elevated);
     }
 
     .form-header h2 {
-      font-size: 1.85rem;
-      margin-bottom: 0.35rem;
+      font-size: 1.75rem;
+      margin-bottom: 0.25rem;
     }
 
     .form-header p {
       color: var(--text-muted);
-      font-size: 0.9rem;
+      font-size: 0.875rem;
       margin: 0;
+    }
+
+    .alert-info-box {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.65rem;
+      padding: 0.75rem 1rem;
+      background: rgba(99, 102, 241, 0.1);
+      border: 1px solid rgba(99, 102, 241, 0.3);
+      border-radius: var(--radius-md);
+      color: var(--text-primary);
+      font-size: 0.8rem;
+      line-height: 1.4;
+      margin-bottom: 1.25rem;
+    }
+
+    .alert-info-box i {
+      color: var(--color-primary);
+      font-size: 1.1rem;
+      margin-top: 0.1rem;
+      flex-shrink: 0;
     }
 
     .input-with-icon {
@@ -315,19 +583,39 @@ import { ThemeService } from '../../core/services/theme.service';
       display: flex;
       align-items: center;
       gap: 0.5rem;
-      padding: 0.65rem 0.85rem;
+      padding: 0.5rem 0.75rem;
       background: var(--color-primary-light);
       border-radius: var(--radius-md);
-      font-size: 0.8rem;
+      font-size: 0.775rem;
       color: var(--color-primary);
-      margin-bottom: 1.5rem;
+      margin-bottom: 1.25rem;
     }
 
     .btn-submit {
       width: 100%;
       padding: 0.85rem;
-      font-size: 1rem;
+      font-size: 0.95rem;
+      font-weight: 700;
       border-radius: var(--radius-md);
+    }
+
+    .btn-demo-access {
+      width: 100%;
+      padding: 0.65rem;
+      font-size: 0.825rem;
+      font-weight: 600;
+      border-radius: var(--radius-md);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.45rem;
+      background: var(--bg-surface-elevated);
+      border: 1px dashed var(--border-color);
+    }
+
+    .btn-demo-access:hover {
+      background: var(--bg-surface-hover);
+      border-color: var(--color-warning);
     }
 
     .alert-error {
@@ -339,7 +627,7 @@ import { ThemeService } from '../../core/services/theme.service';
       border: 1px solid rgba(239, 68, 68, 0.3);
       color: var(--color-danger);
       border-radius: var(--radius-md);
-      font-size: 0.85rem;
+      font-size: 0.825rem;
       margin-bottom: 1.25rem;
     }
 
@@ -347,14 +635,159 @@ import { ThemeService } from '../../core/services/theme.service';
       text-align: center;
       color: var(--text-muted);
       font-size: 0.75rem;
-      margin-top: 1.5rem;
+      margin-top: 1.25rem;
     }
 
-    @media (max-width: 800px) {
+    .spinner-border-sm {
+      display: inline-block;
+      width: 1rem;
+      height: 1rem;
+      vertical-align: -0.125em;
+      border: 0.15em solid currentColor;
+      border-right-color: transparent;
+      border-radius: 50%;
+      animation: spinner-border 0.75s linear infinite;
+    }
+
+    @keyframes spinner-border {
+      to { transform: rotate(360deg); }
+    }
+
+    /* Modal */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.6);
+      backdrop-filter: blur(4px);
+      z-index: 1000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 1rem;
+    }
+
+    .modal-card {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-lg);
+      width: 100%;
+      max-width: 520px;
+      box-shadow: var(--shadow-xl);
+      overflow: hidden;
+      animation: modalFadeIn 0.2s ease-out;
+    }
+
+    @keyframes modalFadeIn {
+      from { opacity: 0; transform: scale(0.96); }
+      to { opacity: 1; transform: scale(1); }
+    }
+
+    .modal-header {
+      padding: 1.25rem 1.5rem;
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .modal-title {
+      font-size: 1.15rem;
+    }
+
+    .btn-close-modal {
+      background: transparent;
+      border: none;
+      font-size: 1.5rem;
+      color: var(--text-muted);
+      cursor: pointer;
+    }
+
+    .modal-body {
+      padding: 1.5rem;
+    }
+
+    .modal-description {
+      font-size: 0.85rem;
+      color: var(--text-secondary);
+      margin-bottom: 1.25rem;
+      line-height: 1.5;
+    }
+
+    .test-result-box {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 0.75rem 1rem;
+      border-radius: var(--radius-md);
+      margin-top: 1rem;
+      font-size: 0.85rem;
+    }
+
+    .result-success {
+      background: var(--color-success-light);
+      border: 1px solid rgba(16, 185, 129, 0.3);
+      color: var(--color-success);
+    }
+
+    .result-error {
+      background: var(--color-danger-light);
+      border: 1px solid rgba(239, 68, 68, 0.3);
+      color: var(--color-danger);
+    }
+
+    .text-small {
+      font-size: 0.775rem;
+      opacity: 0.9;
+    }
+
+    .quick-url-presets {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+    }
+
+    .presets-label {
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: var(--text-muted);
+    }
+
+    .presets-buttons {
+      display: flex;
+      gap: 0.4rem;
+    }
+
+    .btn-outline {
+      background: transparent;
+      border: 1px solid var(--border-color);
+      color: var(--text-secondary);
+      padding: 0.25rem 0.6rem;
+      font-size: 0.75rem;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+    }
+
+    .btn-outline:hover {
+      border-color: var(--color-primary);
+      color: var(--color-primary);
+    }
+
+    .modal-footer {
+      padding: 1rem 1.5rem;
+      background: var(--bg-surface-elevated);
+      border-top: 1px solid var(--border-color);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.5rem;
+    }
+
+    @media (max-width: 850px) {
       .login-wrapper {
         padding: 1rem 0.65rem;
       }
-      .theme-switcher-top {
+      .top-bar-controls {
         top: 0.75rem;
         right: 0.75rem;
       }
@@ -362,9 +795,7 @@ import { ThemeService } from '../../core/services/theme.service';
         flex-direction: column;
         border-radius: var(--radius-lg);
         min-height: auto;
-        width: 100%;
-        max-width: 100%;
-        box-sizing: border-box;
+        margin-top: 3.5rem;
       }
       .login-left-banner {
         padding: 2rem 1.25rem;
@@ -382,7 +813,7 @@ import { ThemeService } from '../../core/services/theme.service';
     }
   `]
 })
-export class LoginComponent {
+export class LoginComponent implements OnInit {
   authService = inject(AuthService);
   themeService = inject(ThemeService);
   private router = inject(Router);
@@ -392,6 +823,66 @@ export class LoginComponent {
   showPassword = signal<boolean>(false);
   loading = signal<boolean>(false);
   errorMessage = signal<string>('');
+
+  // Status de conexão com o backend
+  backendStatus = signal<'online' | 'offline' | 'cold_start' | 'checking'>('checking');
+  backendLatency = signal<number | null>(null);
+
+  // Modal de Configuração de API
+  showConfigModal = signal<boolean>(false);
+  tempApiUrl: string = '';
+  defaultUrl: string = getDefaultApiUrl();
+  testingConnection = signal<boolean>(false);
+  testResult = signal<{ online: boolean; latencyMs?: number; error?: string } | null>(null);
+
+  ngOnInit(): void {
+    this.tempApiUrl = getApiBaseUrl();
+    this.verificarBackendStatus();
+  }
+
+  statusDotClass(): string {
+    switch (this.backendStatus()) {
+      case 'online': return 'dot-green';
+      case 'cold_start': return 'dot-yellow';
+      case 'offline': return 'dot-gray';
+      default: return 'dot-yellow';
+    }
+  }
+
+  statusLabel(): string {
+    switch (this.backendStatus()) {
+      case 'online': 
+        return this.backendLatency() ? `Online (${this.backendLatency()}ms)` : 'Online';
+      case 'cold_start':
+        return 'Servidor Iniciando...';
+      case 'offline':
+        return 'Modo Offline / Demo';
+      default:
+        return 'Verificando...';
+    }
+  }
+
+  verificarBackendStatus(): void {
+    this.backendStatus.set('checking');
+    this.authService.checkBackendHealth().subscribe((res) => {
+      if (res.online) {
+        this.backendStatus.set('online');
+        this.backendLatency.set(res.latencyMs || null);
+      } else {
+        // Se a URL for do Render (.onrender.com), consideramos que pode estar em cold-start
+        if (res.url.includes('onrender.com')) {
+          this.backendStatus.set('cold_start');
+        } else {
+          this.backendStatus.set('offline');
+        }
+      }
+    });
+  }
+
+  selecionarPerfil(user: string): void {
+    this.username = user;
+    this.password = 'admin';
+  }
 
   toggleShowPassword(): void {
     this.showPassword.update((val) => !val);
@@ -413,8 +904,63 @@ export class LoginComponent {
       },
       error: (err) => {
         this.loading.set(false);
-        this.errorMessage.set(err.error?.message || 'Usuário ou senha incorretos.');
+        this.errorMessage.set(err.message || err.error?.message || 'Usuário ou senha incorretos.');
       }
     });
+  }
+
+  onDemoLogin(): void {
+    this.loading.set(true);
+    this.authService.loginDirectMock(this.username || 'admin').subscribe({
+      next: () => {
+        this.loading.set(false);
+        this.router.navigate(['/dashboard']);
+      }
+    });
+  }
+
+  abrirModalConfig(): void {
+    this.tempApiUrl = getApiBaseUrl();
+    this.testResult.set(null);
+    this.showConfigModal.set(true);
+  }
+
+  fecharModalConfig(): void {
+    this.showConfigModal.set(false);
+  }
+
+  testarConexao(): void {
+    this.testingConnection.set(true);
+    this.testResult.set(null);
+
+    // Salva temporariamente para testar
+    setApiBaseUrl(this.tempApiUrl);
+
+    this.authService.checkBackendHealth().subscribe({
+      next: (res) => {
+        this.testingConnection.set(false);
+        this.testResult.set(res);
+        if (res.online) {
+          this.backendStatus.set('online');
+          this.backendLatency.set(res.latencyMs || null);
+        }
+      },
+      error: () => {
+        this.testingConnection.set(false);
+        this.testResult.set({ online: false, error: 'Falha de conexão com a URL informada' });
+      }
+    });
+  }
+
+  salvarConfig(): void {
+    setApiBaseUrl(this.tempApiUrl);
+    this.fecharModalConfig();
+    this.verificarBackendStatus();
+  }
+
+  restaurarPadrao(): void {
+    resetApiBaseUrl();
+    this.tempApiUrl = getDefaultApiUrl();
+    this.testResult.set(null);
   }
 }

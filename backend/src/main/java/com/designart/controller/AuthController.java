@@ -35,4 +35,13 @@ public class AuthController {
         }
         return ResponseEntity.ok(authService.getCurrentUser(authentication.getName()));
     }
+
+    @GetMapping("/ping")
+    public ResponseEntity<java.util.Map<String, Object>> ping() {
+        return ResponseEntity.ok(java.util.Map.of(
+                "status", "UP",
+                "service", "designart-api",
+                "timestamp", System.currentTimeMillis()
+        ));
+    }
 }
