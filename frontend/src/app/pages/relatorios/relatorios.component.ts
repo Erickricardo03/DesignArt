@@ -94,36 +94,36 @@ import { RelatorioMensalItem } from '../../core/models';
               </div>
             </div>
 
-            <!-- TABELA DETALHADA (DESKTOP E IMPRESSÃO) -->
-            <div class="table-responsive desktop-report-table mt-4">
-              <table class="custom-table report-table">
+            <!-- TABELA DO RELATÓRIO OFICIAL (VISÍVEL NA TELA E FORMATADA PARA IMPRESSÃO) -->
+            <div class="table-container-printable">
+              <table class="report-table">
                 <thead>
                   <tr>
-                    <th style="width: 18%;">LOJA / CLIENTE</th>
-                    <th style="width: 24%;">DEMANDA FEITA (TÍTULO DA TAREFA)</th>
-                    <th style="width: 12%; color: #ef4444; font-weight: 900;">STATUS</th>
-                    <th style="width: 14%;">QUEM CRIOU</th>
-                    <th style="width: 16%;">PARTICIPANTES</th>
-                    <th style="width: 16%;">PRAZO / PROGRESSO</th>
+                    <th class="col-loja">LOJA / CLIENTE</th>
+                    <th class="col-demanda">DEMANDA FEITA (TÍTULO DA TAREFA)</th>
+                    <th class="col-status" style="color: #ef4444; font-weight: 900;">STATUS</th>
+                    <th class="col-criador">QUEM CRIOU A TAREFA</th>
+                    <th class="col-participantes">PARTICIPANTES</th>
+                    <th class="col-prazo">PRAZO</th>
                   </tr>
                 </thead>
                 <tbody>
                   <tr *ngFor="let item of itensRelatorio()">
-                    <td>
-                      <strong class="text-primary text-base">{{ item.loja }}</strong>
+                    <td class="col-loja">
+                      <strong class="store-name">{{ item.loja }}</strong>
                     </td>
-                    <td>
-                      <span class="font-bold">{{ item.tituloDemanda }}</span>
+                    <td class="col-demanda">
+                      <span class="demand-title">{{ item.tituloDemanda }}</span>
                     </td>
-                    <td>
-                      <span class="badge" [ngClass]="getStatusBadgeClass(item.status)">
+                    <td class="col-status">
+                      <span class="status-badge" [ngClass]="getStatusBadgeClass(item.status)">
                         {{ getStatusLabel(item.status) }}
                       </span>
                     </td>
-                    <td>
-                      <span class="creator-badge">{{ item.criadorNome || 'Lucas Matheus' }}</span>
+                    <td class="col-criador">
+                      <span class="creator-name">{{ item.criadorNome || 'Lucas Matheus' }}</span>
                     </td>
-                    <td>
+                    <td class="col-participantes">
                       <div class="participantes-list">
                         <span class="part-pill" *ngFor="let p of item.participantes">
                           {{ p }}
@@ -131,16 +131,8 @@ import { RelatorioMensalItem } from '../../core/models';
                         <span class="text-muted text-xs" *ngIf="!item.participantes?.length">-</span>
                       </div>
                     </td>
-                    <td>
-                      <div class="prazo-progress-stack">
-                        <span class="text-muted text-xs font-bold">{{ item.dataEntrega | date:'dd/MM/yyyy' }}</span>
-                        <div class="progress-cell" *ngIf="item.percentualConcluido !== undefined">
-                          <div class="progress-bar-container" style="width: 50px;">
-                            <div class="progress-bar-fill" [style.width.%]="item.percentualConcluido || 0"></div>
-                          </div>
-                          <span class="text-xs font-bold">{{ item.percentualConcluido || 0 }}%</span>
-                        </div>
-                      </div>
+                    <td class="col-prazo">
+                      <span class="prazo-text">{{ item.dataEntrega | date:'dd/MM/yyyy' }}</span>
                     </td>
                   </tr>
 
@@ -151,49 +143,6 @@ import { RelatorioMensalItem } from '../../core/models';
                   </tr>
                 </tbody>
               </table>
-            </div>
-
-            <!-- VISUALIZAÇÃO OTIMIZADA PARA MOBILE (SEM SCROLL HORIZONTAL) -->
-            <div class="mobile-report-list mt-3">
-              <div class="mobile-report-card" *ngFor="let item of itensRelatorio()">
-                <div class="mobile-card-top">
-                  <span class="mobile-card-store">{{ item.loja }}</span>
-                  <span class="badge" [ngClass]="getStatusBadgeClass(item.status)">
-                    {{ getStatusLabel(item.status) }}
-                  </span>
-                </div>
-
-                <h4 class="mobile-card-title">{{ item.tituloDemanda }}</h4>
-
-                <div class="mobile-card-meta-grid">
-                  <div class="meta-item">
-                    <span class="meta-label">CRIADOR:</span>
-                    <span class="meta-val">{{ item.criadorNome || 'Lucas Matheus' }}</span>
-                  </div>
-                  <div class="meta-item" *ngIf="item.dataEntrega">
-                    <span class="meta-label">PRAZO:</span>
-                    <span class="meta-val">{{ item.dataEntrega | date:'dd/MM/yyyy' }}</span>
-                  </div>
-                </div>
-
-                <div class="mobile-card-participants" *ngIf="item.participantes?.length">
-                  <span class="meta-label">PARTICIPANTES:</span>
-                  <div class="participantes-list">
-                    <span class="part-pill" *ngFor="let p of item.participantes">{{ p }}</span>
-                  </div>
-                </div>
-
-                <div class="mobile-card-progress" *ngIf="item.percentualConcluido !== undefined">
-                  <div class="progress-bar-container flex-1">
-                    <div class="progress-bar-fill" [style.width.%]="item.percentualConcluido || 0"></div>
-                  </div>
-                  <span class="text-xs font-bold">{{ item.percentualConcluido || 0 }}%</span>
-                </div>
-              </div>
-
-              <div *ngIf="itensRelatorio().length === 0" class="text-center py-4">
-                <p class="text-muted mb-0">Nenhuma demanda registrada para os parâmetros selecionados.</p>
-              </div>
             </div>
 
             <!-- Resumo e Assinatura do Relatório -->
@@ -308,63 +257,126 @@ import { RelatorioMensalItem } from '../../core/models';
       word-break: break-word;
     }
 
-    .table-responsive {
+    .table-container-printable {
       width: 100%;
       max-width: 100%;
-      overflow-x: auto;
-      -webkit-overflow-scrolling: touch;
-      display: block;
+      overflow: hidden;
       box-sizing: border-box;
+      margin-top: 1.5rem;
     }
 
     .report-table {
       width: 100%;
-      min-width: 0 !important;
-      table-layout: auto;
+      table-layout: fixed;
       border-collapse: collapse;
+      border: 1px solid var(--border-color);
+      background: var(--bg-surface);
+      margin: 0;
     }
 
-    .report-table th, .report-table td {
-      white-space: normal;
-      word-break: break-word;
-      padding: 0.65rem 0.5rem;
-      vertical-align: middle;
-    }
-
-    .creator-badge {
-      font-weight: 700;
-      font-size: 0.825rem;
+    .report-table thead th {
+      background: var(--bg-surface-elevated);
       color: var(--text-secondary);
+      font-size: 0.75rem;
+      font-weight: 800;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      padding: 0.75rem 0.5rem;
+      border-bottom: 2px solid var(--border-color);
+      text-align: left;
+      vertical-align: middle;
+      box-sizing: border-box;
+    }
+
+    .report-table tbody td {
+      padding: 0.7rem 0.5rem;
+      border-bottom: 1px solid var(--border-color);
+      vertical-align: middle;
+      box-sizing: border-box;
+      font-size: 0.82rem;
+      word-wrap: break-word;
+      overflow-wrap: break-word;
+    }
+
+    .col-loja {
+      width: 22%;
+    }
+
+    .col-demanda {
+      width: 28%;
+    }
+
+    .col-status {
+      width: 14%;
+      text-align: center;
+    }
+
+    .col-criador {
+      width: 14%;
+    }
+
+    .col-participantes {
+      width: 12%;
+    }
+
+    .col-prazo {
+      width: 10%;
+      text-align: center;
+    }
+
+    .store-name {
+      font-weight: 800;
+      color: var(--color-primary);
+      display: block;
+      line-height: 1.25;
+    }
+
+    .demand-title {
+      font-weight: 700;
+      color: var(--text-primary);
+      display: block;
+      line-height: 1.3;
+    }
+
+    .status-badge {
+      display: inline-block;
+      padding: 0.25rem 0.55rem;
+      border-radius: 9999px;
+      font-size: 0.72rem;
+      font-weight: 800;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      white-space: nowrap;
+      border: 1.5px solid currentColor;
+    }
+
+    .creator-name {
+      font-weight: 600;
+      color: var(--text-primary);
+      font-size: 0.8rem;
     }
 
     .participantes-list {
       display: flex;
-      gap: 0.35rem;
       flex-wrap: wrap;
-      max-width: 100%;
-      white-space: normal;
-    }
-
-    .part-pill {
-      font-size: 0.725rem;
-      padding: 0.2rem 0.5rem;
-      border-radius: var(--radius-sm);
-      background: var(--bg-surface-elevated);
-      border: 1px solid var(--border-color);
-      color: var(--text-primary);
-      white-space: nowrap;
-    }
-
-    .prazo-progress-stack {
-      display: flex;
-      flex-direction: column;
       gap: 0.25rem;
     }
 
-    .progress-cell {
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
+    .part-pill {
+      font-size: 0.7rem;
+      padding: 0.15rem 0.4rem;
+      border-radius: 4px;
+      background: var(--bg-surface-elevated);
+      border: 1px solid var(--border-color);
+      color: var(--text-primary);
+      font-weight: 600;
+      white-space: nowrap;
+    }
+
+    .prazo-text {
+      font-size: 0.78rem;
+      font-weight: 700;
+      color: var(--text-muted);
     }
 
     .report-footer-section {
@@ -403,134 +415,91 @@ import { RelatorioMensalItem } from '../../core/models';
       margin-bottom: 0.5rem;
     }
 
-    /* Mobile Card Styles */
-    .mobile-report-list {
-      display: none;
-    }
-
-    .mobile-report-card {
-      background: var(--bg-surface-elevated);
-      border: 1.5px solid var(--border-color);
-      border-radius: var(--radius-md);
-      padding: 1rem;
-      display: flex;
-      flex-direction: column;
-      gap: 0.65rem;
-      box-shadow: var(--shadow-sm);
-    }
-
-    .mobile-card-top {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 0.5rem;
-    }
-
-    .mobile-card-store {
-      font-size: 0.95rem;
-      font-weight: 800;
-      color: var(--color-primary);
-    }
-
-    .mobile-card-title {
-      font-size: 0.95rem;
-      font-weight: 700;
-      color: var(--text-primary);
-      margin: 0;
-      line-height: 1.3;
-    }
-
-    .mobile-card-meta-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 0.5rem;
-      font-size: 0.78rem;
-    }
-
-    .meta-item {
-      display: flex;
-      flex-direction: column;
-      gap: 0.15rem;
-    }
-
-    .meta-label {
-      font-size: 0.68rem;
-      font-weight: 800;
-      color: var(--text-muted);
-      letter-spacing: 0.05em;
-    }
-
-    .meta-val {
-      font-weight: 600;
-      color: var(--text-primary);
-    }
-
-    .mobile-card-participants {
-      display: flex;
-      flex-direction: column;
-      gap: 0.3rem;
-    }
-
-    .mobile-card-progress {
-      display: flex;
-      align-items: center;
-      gap: 0.6rem;
-      padding-top: 0.35rem;
-      border-top: 1px dashed var(--border-color);
-    }
-
     @media (max-width: 768px) {
       .report-filters-grid { grid-template-columns: 1fr; gap: 0.75rem; }
       .report-actions-col .btn { width: 100%; }
       .report-official-header { flex-direction: column; align-items: flex-start; text-align: left; gap: 0.85rem; }
       .report-title-box { text-align: left; }
       .report-footer-section { flex-direction: column; align-items: flex-start; }
-      .printable-report-card { padding: 1.25rem 0.85rem; overflow-x: hidden !important; }
+      .printable-report-card { padding: 1rem 0.5rem !important; overflow: hidden !important; }
       .report-stats-box { width: 100%; justify-content: space-between; }
       .signature-box { width: 100%; margin-top: 1rem; }
 
-      .desktop-report-table {
-        display: none !important;
+      .report-table thead th {
+        font-size: 0.62rem !important;
+        padding: 0.5rem 0.25rem !important;
       }
-      .mobile-report-list {
-        display: flex !important;
-        flex-direction: column;
-        gap: 0.75rem;
-        width: 100%;
+      .report-table tbody td {
+        font-size: 0.72rem !important;
+        padding: 0.45rem 0.25rem !important;
+      }
+      .col-loja { width: 22% !important; }
+      .col-demanda { width: 28% !important; }
+      .col-status { width: 16% !important; }
+      .col-criador { width: 16% !important; }
+      .col-participantes { display: none !important; }
+      .col-prazo { width: 18% !important; }
+      .status-badge {
+        padding: 0.15rem 0.35rem !important;
+        font-size: 0.62rem !important;
       }
     }
 
     @media print {
-      .desktop-report-table {
-        display: block !important;
-        width: 100% !important;
-        overflow: visible !important;
-      }
-      .mobile-report-list {
-        display: none !important;
-      }
-      .table-responsive {
-        overflow: visible !important;
-        width: 100% !important;
-        max-width: 100% !important;
-        padding: 0 !important;
-      }
-      .report-table {
-        width: 100% !important;
-        min-width: 0 !important;
-        table-layout: auto !important;
-        font-size: 0.72rem !important;
-      }
-      .report-table th, .report-table td {
-        white-space: normal !important;
-        word-break: break-word !important;
-        padding: 0.4rem 0.3rem !important;
-      }
       .printable-report-card {
         padding: 0 !important;
         border: none !important;
         box-shadow: none !important;
+        width: 100% !important;
+        max-width: 100% !important;
         overflow: visible !important;
+      }
+      .table-container-printable {
+        overflow: visible !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        margin-top: 1rem !important;
+      }
+      .report-table {
+        width: 100% !important;
+        table-layout: fixed !important;
+        border: 1px solid #CBD5E1 !important;
+        page-break-inside: auto !important;
+      }
+      .report-table thead th {
+        background: #F1F5F9 !important;
+        color: #0F172A !important;
+        font-size: 7.5pt !important;
+        padding: 4pt 3pt !important;
+        border-bottom: 1.5pt solid #0F172A !important;
+      }
+      .report-table tbody tr {
+        page-break-inside: avoid !important;
+      }
+      .report-table tbody td {
+        font-size: 8pt !important;
+        padding: 4.5pt 3pt !important;
+        border-bottom: 0.5pt solid #E2E8F0 !important;
+        color: #0F172A !important;
+      }
+      .col-loja { width: 22% !important; }
+      .col-demanda { width: 28% !important; }
+      .col-status { width: 14% !important; }
+      .col-criador { width: 14% !important; }
+      .col-participantes { width: 12% !important; display: table-cell !important; }
+      .col-prazo { width: 10% !important; }
+      .status-badge {
+        border: 1pt solid currentColor !important;
+        font-size: 7pt !important;
+        padding: 1.5pt 4pt !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+      }
+      .report-footer-section {
+        page-break-inside: avoid !important;
+        margin-top: 1.5rem !important;
+        padding-top: 1rem !important;
+        border-top: 1.5pt solid #CBD5E1 !important;
       }
     }
   `]
