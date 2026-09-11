@@ -1,6 +1,6 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpHeaders, HttpParams } from '@angular/common/http';
-import { Observable, of, timeout, catchError } from 'rxjs';
+import { Observable, of, timeout, catchError, tap } from 'rxjs';
 import { getApiBaseUrl } from './api-config';
 import { MockStorageService } from './mock-storage.service';
 import {
@@ -31,7 +31,15 @@ export class ApiService {
   private http = inject(HttpClient);
   private mockDb = inject(MockStorageService);
 
-  private readonly HTTP_TIMEOUT_MS = 6000;
+  private isBackendOnline = false;
+  private hasCheckedOnlineStatus = false;
+  private isChecking = false;
+
+  private readonly FAST_TIMEOUT_MS = 800;
+
+  constructor() {
+    this.checkHealthQuietly();
+  }
 
   private get baseUrl(): string {
     return getApiBaseUrl();
@@ -45,87 +53,113 @@ export class ApiService {
     });
   }
 
+  /**
+   * Verifica em segundo plano se o backend está vivo sem travar a interface
+   */
+  public checkHealthQuietly(): void {
+    if (this.isChecking) return;
+    this.isChecking = true;
+
+    this.http
+      .get(`${this.baseUrl}/health`, { headers: this.getHeaders(), responseType: 'text' })
+      .pipe(
+        timeout(1000),
+        catchError(() => of(null))
+      )
+      .subscribe({
+        next: (res) => {
+          this.isBackendOnline = !!res;
+          this.hasCheckedOnlineStatus = true;
+          this.isChecking = false;
+        },
+        error: () => {
+          this.isBackendOnline = false;
+          this.hasCheckedOnlineStatus = true;
+          this.isChecking = false;
+        },
+      });
+  }
+
+  /**
+   * Wrapper universal ultra rápido:
+   * Se o backend estiver offline ou não responder imediatamente, retorna instantaneamente (0ms) os dados locais.
+   */
+  private execute<T>(httpCall: Observable<T>, fallbackFn: () => T): Observable<T> {
+    if (this.hasCheckedOnlineStatus && !this.isBackendOnline) {
+      // 🚀 RESPOSTA INSTANTÂNEA EM 0ms!
+      return of(fallbackFn());
+    }
+
+    return httpCall.pipe(
+      timeout(this.FAST_TIMEOUT_MS),
+      tap(() => {
+        this.isBackendOnline = true;
+        this.hasCheckedOnlineStatus = true;
+      }),
+      catchError(() => {
+        this.isBackendOnline = false;
+        this.hasCheckedOnlineStatus = true;
+        return of(fallbackFn());
+      })
+    );
+  }
+
   // === DASHBOARD ===
   getDashboardStats(): Observable<DashboardStats> {
-    return this.http
-      .get<DashboardStats>(`${this.baseUrl}/dashboard/stats`, {
-        headers: this.getHeaders(),
-      })
-      .pipe(
-        timeout(this.HTTP_TIMEOUT_MS),
-        catchError(() => of(this.mockDb.getDashboardStats()))
-      );
+    return this.execute(
+      this.http.get<DashboardStats>(`${this.baseUrl}/dashboard/stats`, { headers: this.getHeaders() }),
+      () => this.mockDb.getDashboardStats()
+    );
   }
 
   getSaudeFinanceira(): Observable<SaudeFinanceira> {
-    return this.http
-      .get<SaudeFinanceira>(`${this.baseUrl}/financeiro/saude`, {
-        headers: this.getHeaders(),
-      })
-      .pipe(
-        timeout(this.HTTP_TIMEOUT_MS),
-        catchError(() => of(this.mockDb.getSaudeFinanceira()))
-      );
+    return this.execute(
+      this.http.get<SaudeFinanceira>(`${this.baseUrl}/financeiro/saude`, { headers: this.getHeaders() }),
+      () => this.mockDb.getSaudeFinanceira()
+    );
   }
 
   // === CLIENTES & MARCAS ===
   getClientes(): Observable<Cliente[]> {
-    return this.http
-      .get<Cliente[]>(`${this.baseUrl}/clientes`, {
-        headers: this.getHeaders(),
-      })
-      .pipe(
-        timeout(this.HTTP_TIMEOUT_MS),
-        catchError(() => of(this.mockDb.getClientes()))
-      );
+    return this.execute(
+      this.http.get<Cliente[]>(`${this.baseUrl}/clientes`, { headers: this.getHeaders() }),
+      () => this.mockDb.getClientes()
+    );
   }
 
   getClienteById(id: number): Observable<Cliente> {
-    return this.http
-      .get<Cliente>(`${this.baseUrl}/clientes/${id}`, {
-        headers: this.getHeaders(),
-      })
-      .pipe(
-        timeout(this.HTTP_TIMEOUT_MS),
-        catchError(() => {
-          const c = this.mockDb.getClienteById(id);
-          if (c) return of(c);
-          throw new Error('Cliente não encontrado');
-        })
-      );
+    return this.execute(
+      this.http.get<Cliente>(`${this.baseUrl}/clientes/${id}`, { headers: this.getHeaders() }),
+      () => {
+        const c = this.mockDb.getClienteById(id);
+        if (c) return c;
+        throw new Error('Cliente não encontrado');
+      }
+    );
   }
 
   createCliente(cliente: Partial<Cliente>): Observable<Cliente> {
-    return this.http
-      .post<Cliente>(`${this.baseUrl}/clientes`, cliente, {
-        headers: this.getHeaders(),
-      })
-      .pipe(
-        timeout(this.HTTP_TIMEOUT_MS),
-        catchError(() => of(this.mockDb.createCliente(cliente)))
-      );
+    const local = this.mockDb.createCliente(cliente);
+    return this.execute(
+      this.http.post<Cliente>(`${this.baseUrl}/clientes`, cliente, { headers: this.getHeaders() }),
+      () => local
+    );
   }
 
   updateCliente(id: number, cliente: Partial<Cliente>): Observable<Cliente> {
-    return this.http
-      .put<Cliente>(`${this.baseUrl}/clientes/${id}`, cliente, {
-        headers: this.getHeaders(),
-      })
-      .pipe(
-        timeout(this.HTTP_TIMEOUT_MS),
-        catchError(() => of(this.mockDb.updateCliente(id, cliente)))
-      );
+    const local = this.mockDb.updateCliente(id, cliente);
+    return this.execute(
+      this.http.put<Cliente>(`${this.baseUrl}/clientes/${id}`, cliente, { headers: this.getHeaders() }),
+      () => local
+    );
   }
 
   deleteCliente(id: number): Observable<boolean> {
-    return this.http
-      .delete<boolean>(`${this.baseUrl}/clientes/${id}`, {
-        headers: this.getHeaders(),
-      })
-      .pipe(
-        timeout(this.HTTP_TIMEOUT_MS),
-        catchError(() => of(this.mockDb.deleteCliente(id)))
-      );
+    const local = this.mockDb.deleteCliente(id);
+    return this.execute(
+      this.http.delete<boolean>(`${this.baseUrl}/clientes/${id}`, { headers: this.getHeaders() }),
+      () => local
+    );
   }
 
   // === FATURAS MENSALIDADE ===
@@ -135,218 +169,154 @@ export class ApiService {
     if (status) params = params.set('status', status);
     if (clienteId) params = params.set('clienteId', clienteId);
 
-    return this.http
-      .get<Fatura[]>(`${this.baseUrl}/faturas`, {
-        headers: this.getHeaders(),
-        params,
-      })
-      .pipe(
-        timeout(this.HTTP_TIMEOUT_MS),
-        catchError(() => of(this.mockDb.getFaturas(mesReferencia, status, clienteId)))
-      );
+    return this.execute(
+      this.http.get<Fatura[]>(`${this.baseUrl}/faturas`, { headers: this.getHeaders(), params }),
+      () => this.mockDb.getFaturas(mesReferencia, status, clienteId)
+    );
   }
 
   createFatura(fatura: Partial<Fatura>): Observable<Fatura> {
-    return this.http
-      .post<Fatura>(`${this.baseUrl}/faturas`, fatura, {
-        headers: this.getHeaders(),
-      })
-      .pipe(
-        timeout(this.HTTP_TIMEOUT_MS),
-        catchError(() => of(this.mockDb.createFatura(fatura)))
-      );
+    const local = this.mockDb.createFatura(fatura);
+    return this.execute(
+      this.http.post<Fatura>(`${this.baseUrl}/faturas`, fatura, { headers: this.getHeaders() }),
+      () => local
+    );
   }
 
   updateFatura(id: number, fatura: Partial<Fatura>): Observable<Fatura> {
-    return this.http
-      .put<Fatura>(`${this.baseUrl}/faturas/${id}`, fatura, {
-        headers: this.getHeaders(),
-      })
-      .pipe(
-        timeout(this.HTTP_TIMEOUT_MS),
-        catchError(() => of(this.mockDb.updateFatura(id, fatura)))
-      );
+    const local = this.mockDb.updateFatura(id, fatura);
+    return this.execute(
+      this.http.put<Fatura>(`${this.baseUrl}/faturas/${id}`, fatura, { headers: this.getHeaders() }),
+      () => local
+    );
   }
 
   toggleStatusFatura(id: number): Observable<Fatura> {
-    return this.http
-      .patch<Fatura>(`${this.baseUrl}/faturas/${id}/toggle`, {}, {
-        headers: this.getHeaders(),
-      })
-      .pipe(
-        timeout(this.HTTP_TIMEOUT_MS),
-        catchError(() => of(this.mockDb.toggleStatusFatura(id)))
-      );
+    const local = this.mockDb.toggleStatusFatura(id);
+    return this.execute(
+      this.http.patch<Fatura>(`${this.baseUrl}/faturas/${id}/toggle`, {}, { headers: this.getHeaders() }),
+      () => local
+    );
   }
 
   deleteFatura(id: number): Observable<boolean> {
-    return this.http
-      .delete<boolean>(`${this.baseUrl}/faturas/${id}`, {
-        headers: this.getHeaders(),
-      })
-      .pipe(
-        timeout(this.HTTP_TIMEOUT_MS),
-        catchError(() => of(this.mockDb.deleteFatura(id)))
-      );
+    const local = this.mockDb.deleteFatura(id);
+    return this.execute(
+      this.http.delete<boolean>(`${this.baseUrl}/faturas/${id}`, { headers: this.getHeaders() }),
+      () => local
+    );
   }
 
   // === SERVIÇOS DO CATÁLOGO ===
   getServicos(): Observable<ServicoCatalogo[]> {
-    return this.http
-      .get<ServicoCatalogo[]>(`${this.baseUrl}/servicos`, {
-        headers: this.getHeaders(),
-      })
-      .pipe(
-        timeout(this.HTTP_TIMEOUT_MS),
-        catchError(() => of(this.mockDb.getServicos()))
-      );
+    return this.execute(
+      this.http.get<ServicoCatalogo[]>(`${this.baseUrl}/servicos`, { headers: this.getHeaders() }),
+      () => this.mockDb.getServicos()
+    );
   }
 
   createServico(servico: Partial<ServicoCatalogo>): Observable<ServicoCatalogo> {
-    return this.http
-      .post<ServicoCatalogo>(`${this.baseUrl}/servicos`, servico, {
-        headers: this.getHeaders(),
-      })
-      .pipe(
-        timeout(this.HTTP_TIMEOUT_MS),
-        catchError(() => of(this.mockDb.createServico(servico)))
-      );
+    const local = this.mockDb.createServico(servico);
+    return this.execute(
+      this.http.post<ServicoCatalogo>(`${this.baseUrl}/servicos`, servico, { headers: this.getHeaders() }),
+      () => local
+    );
   }
 
   updateServico(id: number, servico: Partial<ServicoCatalogo>): Observable<ServicoCatalogo> {
-    return this.http
-      .put<ServicoCatalogo>(`${this.baseUrl}/servicos/${id}`, servico, {
-        headers: this.getHeaders(),
-      })
-      .pipe(
-        timeout(this.HTTP_TIMEOUT_MS),
-        catchError(() => of(this.mockDb.updateServico(id, servico)))
-      );
+    const local = this.mockDb.updateServico(id, servico);
+    return this.execute(
+      this.http.put<ServicoCatalogo>(`${this.baseUrl}/servicos/${id}`, servico, { headers: this.getHeaders() }),
+      () => local
+    );
   }
 
   deleteServico(id: number): Observable<boolean> {
-    return this.http
-      .delete<boolean>(`${this.baseUrl}/servicos/${id}`, {
-        headers: this.getHeaders(),
-      })
-      .pipe(
-        timeout(this.HTTP_TIMEOUT_MS),
-        catchError(() => of(this.mockDb.deleteServico(id)))
-      );
+    const local = this.mockDb.deleteServico(id);
+    return this.execute(
+      this.http.delete<boolean>(`${this.baseUrl}/servicos/${id}`, { headers: this.getHeaders() }),
+      () => local
+    );
   }
 
   // === EQUIPE & COLABORADORES ===
   getColaboradores(): Observable<Colaborador[]> {
-    return this.http
-      .get<Colaborador[]>(`${this.baseUrl}/equipe`, {
-        headers: this.getHeaders(),
-      })
-      .pipe(
-        timeout(this.HTTP_TIMEOUT_MS),
-        catchError(() => of(this.mockDb.getColaboradores()))
-      );
+    return this.execute(
+      this.http.get<Colaborador[]>(`${this.baseUrl}/equipe`, { headers: this.getHeaders() }),
+      () => this.mockDb.getColaboradores()
+    );
   }
 
   createColaborador(colaborador: Partial<Colaborador>): Observable<Colaborador> {
-    return this.http
-      .post<Colaborador>(`${this.baseUrl}/equipe`, colaborador, {
-        headers: this.getHeaders(),
-      })
-      .pipe(
-        timeout(this.HTTP_TIMEOUT_MS),
-        catchError(() => of(this.mockDb.createColaborador(colaborador)))
-      );
+    const local = this.mockDb.createColaborador(colaborador);
+    return this.execute(
+      this.http.post<Colaborador>(`${this.baseUrl}/equipe`, colaborador, { headers: this.getHeaders() }),
+      () => local
+    );
   }
 
   updateColaborador(id: number, colaborador: Partial<Colaborador>): Observable<Colaborador> {
-    return this.http
-      .put<Colaborador>(`${this.baseUrl}/equipe/${id}`, colaborador, {
-        headers: this.getHeaders(),
-      })
-      .pipe(
-        timeout(this.HTTP_TIMEOUT_MS),
-        catchError(() => of(this.mockDb.updateColaborador(id, colaborador)))
-      );
+    const local = this.mockDb.updateColaborador(id, colaborador);
+    return this.execute(
+      this.http.put<Colaborador>(`${this.baseUrl}/equipe/${id}`, colaborador, { headers: this.getHeaders() }),
+      () => local
+    );
   }
 
   deleteColaborador(id: number): Observable<boolean> {
-    return this.http
-      .delete<boolean>(`${this.baseUrl}/equipe/${id}`, {
-        headers: this.getHeaders(),
-      })
-      .pipe(
-        timeout(this.HTTP_TIMEOUT_MS),
-        catchError(() => of(this.mockDb.deleteColaborador(id)))
-      );
+    const local = this.mockDb.deleteColaborador(id);
+    return this.execute(
+      this.http.delete<boolean>(`${this.baseUrl}/equipe/${id}`, { headers: this.getHeaders() }),
+      () => local
+    );
   }
 
   // === MUNICÍPIOS ===
   getMunicipios(): Observable<Municipio[]> {
-    return this.http
-      .get<Municipio[]>(`${this.baseUrl}/municipios`, {
-        headers: this.getHeaders(),
-      })
-      .pipe(
-        timeout(this.HTTP_TIMEOUT_MS),
-        catchError(() => of(this.mockDb.getMunicipios()))
-      );
+    return this.execute(
+      this.http.get<Municipio[]>(`${this.baseUrl}/municipios`, { headers: this.getHeaders() }),
+      () => this.mockDb.getMunicipios()
+    );
   }
 
   createMunicipio(m: Partial<Municipio>): Observable<Municipio> {
-    return this.http
-      .post<Municipio>(`${this.baseUrl}/municipios`, m, {
-        headers: this.getHeaders(),
-      })
-      .pipe(
-        timeout(this.HTTP_TIMEOUT_MS),
-        catchError(() => of(this.mockDb.createMunicipio(m)))
-      );
+    const local = this.mockDb.createMunicipio(m);
+    return this.execute(
+      this.http.post<Municipio>(`${this.baseUrl}/municipios`, m, { headers: this.getHeaders() }),
+      () => local
+    );
   }
 
   deleteMunicipio(id: number): Observable<boolean> {
-    return this.http
-      .delete<boolean>(`${this.baseUrl}/municipios/${id}`, {
-        headers: this.getHeaders(),
-      })
-      .pipe(
-        timeout(this.HTTP_TIMEOUT_MS),
-        catchError(() => of(this.mockDb.deleteMunicipio(id)))
-      );
+    const local = this.mockDb.deleteMunicipio(id);
+    return this.execute(
+      this.http.delete<boolean>(`${this.baseUrl}/municipios/${id}`, { headers: this.getHeaders() }),
+      () => local
+    );
   }
 
   // === CONFIGURAÇÃO DA LOJA ===
   getConfigLoja(): Observable<ConfiguracaoLoja> {
-    return this.http
-      .get<ConfiguracaoLoja>(`${this.baseUrl}/configuracoes/loja`, {
-        headers: this.getHeaders(),
-      })
-      .pipe(
-        timeout(this.HTTP_TIMEOUT_MS),
-        catchError(() => of(this.mockDb.getConfigLoja()))
-      );
+    return this.execute(
+      this.http.get<ConfiguracaoLoja>(`${this.baseUrl}/configuracoes/loja`, { headers: this.getHeaders() }),
+      () => this.mockDb.getConfigLoja()
+    );
   }
 
   updateConfigLoja(config: Partial<ConfiguracaoLoja>): Observable<ConfiguracaoLoja> {
-    return this.http
-      .put<ConfiguracaoLoja>(`${this.baseUrl}/configuracoes/loja`, config, {
-        headers: this.getHeaders(),
-      })
-      .pipe(
-        timeout(this.HTTP_TIMEOUT_MS),
-        catchError(() => of(this.mockDb.updateConfigLoja(config)))
-      );
+    const local = this.mockDb.updateConfigLoja(config);
+    return this.execute(
+      this.http.put<ConfiguracaoLoja>(`${this.baseUrl}/configuracoes/loja`, config, { headers: this.getHeaders() }),
+      () => local
+    );
   }
 
   // === HISTÓRICO DE ATIVIDADES ===
   getHistorico(): Observable<AtividadeHistorico[]> {
-    return this.http
-      .get<AtividadeHistorico[]>(`${this.baseUrl}/historico`, {
-        headers: this.getHeaders(),
-      })
-      .pipe(
-        timeout(this.HTTP_TIMEOUT_MS),
-        catchError(() => of(this.mockDb.getHistorico()))
-      );
+    return this.execute(
+      this.http.get<AtividadeHistorico[]>(`${this.baseUrl}/historico`, { headers: this.getHeaders() }),
+      () => this.mockDb.getHistorico()
+    );
   }
 
   // === TAREFAS ===
@@ -356,122 +326,88 @@ export class ApiService {
     if (status) params = params.set('status', status);
     if (prioridade) params = params.set('prioridade', prioridade);
 
-    return this.http
-      .get<Tarefa[]>(`${this.baseUrl}/tarefas`, {
-        headers: this.getHeaders(),
-        params,
-      })
-      .pipe(
-        timeout(this.HTTP_TIMEOUT_MS),
-        catchError(() => of(this.mockDb.getTarefas(loja, status, prioridade)))
-      );
+    return this.execute(
+      this.http.get<Tarefa[]>(`${this.baseUrl}/tarefas`, { headers: this.getHeaders(), params }),
+      () => this.mockDb.getTarefas(loja, status, prioridade)
+    );
   }
 
   getTarefaById(id: number): Observable<Tarefa> {
-    return this.http
-      .get<Tarefa>(`${this.baseUrl}/tarefas/${id}`, {
-        headers: this.getHeaders(),
-      })
-      .pipe(
-        timeout(this.HTTP_TIMEOUT_MS),
-        catchError(() => {
-          const t = this.mockDb.getTarefaById(id);
-          if (t) return of(t);
-          throw new Error('Tarefa não encontrada');
-        })
-      );
+    return this.execute(
+      this.http.get<Tarefa>(`${this.baseUrl}/tarefas/${id}`, { headers: this.getHeaders() }),
+      () => {
+        const t = this.mockDb.getTarefaById(id);
+        if (t) return t;
+        throw new Error('Tarefa não encontrada');
+      }
+    );
   }
 
   getTarefaByToken(token: string): Observable<Tarefa> {
-    return this.http
-      .get<Tarefa>(`${this.baseUrl}/tarefas/token/${token}`, {
-        headers: this.getHeaders(),
-      })
-      .pipe(
-        timeout(this.HTTP_TIMEOUT_MS),
-        catchError(() => {
-          const t = this.mockDb.getTarefaByToken(token);
-          if (t) return of(t);
-          throw new Error('Tarefa não encontrada');
-        })
-      );
+    return this.execute(
+      this.http.get<Tarefa>(`${this.baseUrl}/tarefas/token/${token}`, { headers: this.getHeaders() }),
+      () => {
+        const t = this.mockDb.getTarefaByToken(token);
+        if (t) return t;
+        throw new Error('Tarefa não encontrada');
+      }
+    );
   }
 
   createTarefa(tarefa: Partial<Tarefa>): Observable<Tarefa> {
-    return this.http
-      .post<Tarefa>(`${this.baseUrl}/tarefas`, tarefa, {
-        headers: this.getHeaders(),
-      })
-      .pipe(
-        timeout(this.HTTP_TIMEOUT_MS),
-        catchError(() => of(this.mockDb.createTarefa(tarefa)))
-      );
+    const local = this.mockDb.createTarefa(tarefa);
+    return this.execute(
+      this.http.post<Tarefa>(`${this.baseUrl}/tarefas`, tarefa, { headers: this.getHeaders() }),
+      () => local
+    );
   }
 
   updateTarefa(id: number, tarefa: Partial<Tarefa>): Observable<Tarefa> {
-    return this.http
-      .put<Tarefa>(`${this.baseUrl}/tarefas/${id}`, tarefa, {
-        headers: this.getHeaders(),
-      })
-      .pipe(
-        timeout(this.HTTP_TIMEOUT_MS),
-        catchError(() => of(this.mockDb.updateTarefa(id, tarefa)))
-      );
+    const local = this.mockDb.updateTarefa(id, tarefa);
+    return this.execute(
+      this.http.put<Tarefa>(`${this.baseUrl}/tarefas/${id}`, tarefa, { headers: this.getHeaders() }),
+      () => local
+    );
   }
 
   deleteTarefa(id: number): Observable<boolean> {
-    return this.http
-      .delete<boolean>(`${this.baseUrl}/tarefas/${id}`, {
-        headers: this.getHeaders(),
-      })
-      .pipe(
-        timeout(this.HTTP_TIMEOUT_MS),
-        catchError(() => of(this.mockDb.deleteTarefa(id)))
-      );
+    const local = this.mockDb.deleteTarefa(id);
+    return this.execute(
+      this.http.delete<boolean>(`${this.baseUrl}/tarefas/${id}`, { headers: this.getHeaders() }),
+      () => local
+    );
   }
 
   addObservacaoTarefa(tarefaId: number, texto: string, autorNome?: string): Observable<Tarefa> {
-    return this.http
-      .post<Tarefa>(`${this.baseUrl}/tarefas/${tarefaId}/observacoes`, { texto, autorNome }, {
-        headers: this.getHeaders(),
-      })
-      .pipe(
-        timeout(this.HTTP_TIMEOUT_MS),
-        catchError(() => of(this.mockDb.addObservacaoTarefa(tarefaId, texto, autorNome)))
-      );
+    const local = this.mockDb.addObservacaoTarefa(tarefaId, texto, autorNome);
+    return this.execute(
+      this.http.post<Tarefa>(`${this.baseUrl}/tarefas/${tarefaId}/observacoes`, { texto, autorNome }, { headers: this.getHeaders() }),
+      () => local
+    );
   }
 
   addArquivoFinal(tarefaId: number, arquivo: { nome: string; urlOuBase64: string; tipo?: 'IMAGEM' | 'VIDEO' | 'DOCUMENTO' }): Observable<Tarefa> {
-    return this.http
-      .post<Tarefa>(`${this.baseUrl}/tarefas/${tarefaId}/arquivos`, arquivo, {
-        headers: this.getHeaders(),
-      })
-      .pipe(
-        timeout(this.HTTP_TIMEOUT_MS),
-        catchError(() => of(this.mockDb.addArquivoFinal(tarefaId, arquivo)))
-      );
+    const local = this.mockDb.addArquivoFinal(tarefaId, arquivo);
+    return this.execute(
+      this.http.post<Tarefa>(`${this.baseUrl}/tarefas/${tarefaId}/arquivos`, arquivo, { headers: this.getHeaders() }),
+      () => local
+    );
   }
 
   removeArquivoFinal(tarefaId: number, arquivoId: number): Observable<Tarefa> {
-    return this.http
-      .delete<Tarefa>(`${this.baseUrl}/tarefas/${tarefaId}/arquivos/${arquivoId}`, {
-        headers: this.getHeaders(),
-      })
-      .pipe(
-        timeout(this.HTTP_TIMEOUT_MS),
-        catchError(() => of(this.mockDb.removeArquivoFinal(tarefaId, arquivoId)))
-      );
+    const local = this.mockDb.removeArquivoFinal(tarefaId, arquivoId);
+    return this.execute(
+      this.http.delete<Tarefa>(`${this.baseUrl}/tarefas/${tarefaId}/arquivos/${arquivoId}`, { headers: this.getHeaders() }),
+      () => local
+    );
   }
 
   responderAprovacao(tarefaId: number, statusAprovacao: 'APROVADO' | 'SOLICITOU_AJUSTE', feedback?: string): Observable<Tarefa> {
-    return this.http
-      .post<Tarefa>(`${this.baseUrl}/tarefas/${tarefaId}/aprovacao`, { statusAprovacao, feedback }, {
-        headers: this.getHeaders(),
-      })
-      .pipe(
-        timeout(this.HTTP_TIMEOUT_MS),
-        catchError(() => of(this.mockDb.responderAprovacao(tarefaId, statusAprovacao, feedback)))
-      );
+    const local = this.mockDb.responderAprovacao(tarefaId, statusAprovacao, feedback);
+    return this.execute(
+      this.http.post<Tarefa>(`${this.baseUrl}/tarefas/${tarefaId}/aprovacao`, { statusAprovacao, feedback }, { headers: this.getHeaders() }),
+      () => local
+    );
   }
 
   // === ROTEIROS ===
@@ -480,74 +416,53 @@ export class ApiService {
     if (loja) params = params.set('loja', loja);
     if (status) params = params.set('status', status);
 
-    return this.http
-      .get<Roteiro[]>(`${this.baseUrl}/roteiros`, {
-        headers: this.getHeaders(),
-        params,
-      })
-      .pipe(
-        timeout(this.HTTP_TIMEOUT_MS),
-        catchError(() => of(this.mockDb.getRoteiros(loja, status)))
-      );
+    return this.execute(
+      this.http.get<Roteiro[]>(`${this.baseUrl}/roteiros`, { headers: this.getHeaders(), params }),
+      () => this.mockDb.getRoteiros(loja, status)
+    );
   }
 
   getRoteiroById(id: number): Observable<Roteiro> {
-    return this.http
-      .get<Roteiro>(`${this.baseUrl}/roteiros/${id}`, {
-        headers: this.getHeaders(),
-      })
-      .pipe(
-        timeout(this.HTTP_TIMEOUT_MS),
-        catchError(() => {
-          const r = this.mockDb.getRoteiroById(id);
-          if (r) return of(r);
-          throw new Error('Roteiro não encontrado');
-        })
-      );
+    return this.execute(
+      this.http.get<Roteiro>(`${this.baseUrl}/roteiros/${id}`, { headers: this.getHeaders() }),
+      () => {
+        const r = this.mockDb.getRoteiroById(id);
+        if (r) return r;
+        throw new Error('Roteiro não encontrado');
+      }
+    );
   }
 
   createRoteiro(roteiro: Partial<Roteiro>): Observable<Roteiro> {
-    return this.http
-      .post<Roteiro>(`${this.baseUrl}/roteiros`, roteiro, {
-        headers: this.getHeaders(),
-      })
-      .pipe(
-        timeout(this.HTTP_TIMEOUT_MS),
-        catchError(() => of(this.mockDb.createRoteiro(roteiro)))
-      );
+    const local = this.mockDb.createRoteiro(roteiro);
+    return this.execute(
+      this.http.post<Roteiro>(`${this.baseUrl}/roteiros`, roteiro, { headers: this.getHeaders() }),
+      () => local
+    );
   }
 
   updateRoteiro(id: number, roteiro: Partial<Roteiro>): Observable<Roteiro> {
-    return this.http
-      .put<Roteiro>(`${this.baseUrl}/roteiros/${id}`, roteiro, {
-        headers: this.getHeaders(),
-      })
-      .pipe(
-        timeout(this.HTTP_TIMEOUT_MS),
-        catchError(() => of(this.mockDb.updateRoteiro(id, roteiro)))
-      );
+    const local = this.mockDb.updateRoteiro(id, roteiro);
+    return this.execute(
+      this.http.put<Roteiro>(`${this.baseUrl}/roteiros/${id}`, roteiro, { headers: this.getHeaders() }),
+      () => local
+    );
   }
 
   toggleGravacaoRoteiro(id: number): Observable<Roteiro> {
-    return this.http
-      .patch<Roteiro>(`${this.baseUrl}/roteiros/${id}/toggle`, {}, {
-        headers: this.getHeaders(),
-      })
-      .pipe(
-        timeout(this.HTTP_TIMEOUT_MS),
-        catchError(() => of(this.mockDb.toggleGravacaoRoteiro(id)))
-      );
+    const local = this.mockDb.toggleGravacaoRoteiro(id);
+    return this.execute(
+      this.http.patch<Roteiro>(`${this.baseUrl}/roteiros/${id}/toggle`, {}, { headers: this.getHeaders() }),
+      () => local
+    );
   }
 
   deleteRoteiro(id: number): Observable<boolean> {
-    return this.http
-      .delete<boolean>(`${this.baseUrl}/roteiros/${id}`, {
-        headers: this.getHeaders(),
-      })
-      .pipe(
-        timeout(this.HTTP_TIMEOUT_MS),
-        catchError(() => of(this.mockDb.deleteRoteiro(id)))
-      );
+    const local = this.mockDb.deleteRoteiro(id);
+    return this.execute(
+      this.http.delete<boolean>(`${this.baseUrl}/roteiros/${id}`, { headers: this.getHeaders() }),
+      () => local
+    );
   }
 
   // === LOGOS ===
@@ -555,108 +470,77 @@ export class ApiService {
     let params = new HttpParams();
     if (cliente) params = params.set('cliente', cliente);
 
-    return this.http
-      .get<LogoCliente[]>(`${this.baseUrl}/logos`, {
-        headers: this.getHeaders(),
-        params,
-      })
-      .pipe(
-        timeout(this.HTTP_TIMEOUT_MS),
-        catchError(() => of(this.mockDb.getLogos(cliente)))
-      );
+    return this.execute(
+      this.http.get<LogoCliente[]>(`${this.baseUrl}/logos`, { headers: this.getHeaders(), params }),
+      () => this.mockDb.getLogos(cliente)
+    );
   }
 
   createLogo(logo: Partial<LogoCliente>): Observable<LogoCliente> {
-    return this.http
-      .post<LogoCliente>(`${this.baseUrl}/logos`, logo, {
-        headers: this.getHeaders(),
-      })
-      .pipe(
-        timeout(this.HTTP_TIMEOUT_MS),
-        catchError(() => of(this.mockDb.createLogo(logo)))
-      );
+    const local = this.mockDb.createLogo(logo);
+    return this.execute(
+      this.http.post<LogoCliente>(`${this.baseUrl}/logos`, logo, { headers: this.getHeaders() }),
+      () => local
+    );
   }
 
   deleteLogo(id: number): Observable<boolean> {
-    return this.http
-      .delete<boolean>(`${this.baseUrl}/logos/${id}`, {
-        headers: this.getHeaders(),
-      })
-      .pipe(
-        timeout(this.HTTP_TIMEOUT_MS),
-        catchError(() => of(this.mockDb.deleteLogo(id)))
-      );
+    const local = this.mockDb.deleteLogo(id);
+    return this.execute(
+      this.http.delete<boolean>(`${this.baseUrl}/logos/${id}`, { headers: this.getHeaders() }),
+      () => local
+    );
   }
 
   // === EVENTOS / LOJA DE FOTOS ===
   getEventos(): Observable<Evento[]> {
-    return this.http
-      .get<Evento[]>(`${this.baseUrl}/eventos`, {
-        headers: this.getHeaders(),
-      })
-      .pipe(
-        timeout(this.HTTP_TIMEOUT_MS),
-        catchError(() => of(this.mockDb.getEventos()))
-      );
+    return this.execute(
+      this.http.get<Evento[]>(`${this.baseUrl}/eventos`, { headers: this.getHeaders() }),
+      () => this.mockDb.getEventos()
+    );
   }
 
   getEventoById(id: number): Observable<Evento> {
-    return this.http
-      .get<Evento>(`${this.baseUrl}/eventos/${id}`, {
-        headers: this.getHeaders(),
-      })
-      .pipe(
-        timeout(this.HTTP_TIMEOUT_MS),
-        catchError(() => {
-          const e = this.mockDb.getEventoById(id);
-          if (e) return of(e);
-          throw new Error('Evento não encontrado');
-        })
-      );
+    return this.execute(
+      this.http.get<Evento>(`${this.baseUrl}/eventos/${id}`, { headers: this.getHeaders() }),
+      () => {
+        const e = this.mockDb.getEventoById(id);
+        if (e) return e;
+        throw new Error('Evento não encontrado');
+      }
+    );
   }
 
   createEvento(evento: Partial<Evento>): Observable<Evento> {
-    return this.http
-      .post<Evento>(`${this.baseUrl}/eventos`, evento, {
-        headers: this.getHeaders(),
-      })
-      .pipe(
-        timeout(this.HTTP_TIMEOUT_MS),
-        catchError(() => of(this.mockDb.createEvento(evento)))
-      );
+    const local = this.mockDb.createEvento(evento);
+    return this.execute(
+      this.http.post<Evento>(`${this.baseUrl}/eventos`, evento, { headers: this.getHeaders() }),
+      () => local
+    );
   }
 
   addFotoEvento(eventoId: number, foto: Partial<FotoEvento>): Observable<Evento> {
-    return this.http
-      .post<Evento>(`${this.baseUrl}/eventos/${eventoId}/fotos`, foto, {
-        headers: this.getHeaders(),
-      })
-      .pipe(
-        timeout(this.HTTP_TIMEOUT_MS),
-        catchError(() => of(this.mockDb.addFotoEvento(eventoId, foto)))
-      );
+    const local = this.mockDb.addFotoEvento(eventoId, foto);
+    return this.execute(
+      this.http.post<Evento>(`${this.baseUrl}/eventos/${eventoId}/fotos`, foto, { headers: this.getHeaders() }),
+      () => local
+    );
   }
 
   deleteFotoEvento(fotoId: number): Observable<boolean> {
-    return this.http
-      .delete<boolean>(`${this.baseUrl}/eventos/fotos/${fotoId}`, {
-        headers: this.getHeaders(),
-      })
-      .pipe(
-        timeout(this.HTTP_TIMEOUT_MS),
-        catchError(() => of(this.mockDb.deleteFotoEvento(fotoId)))
-      );
+    const local = this.mockDb.deleteFotoEvento(fotoId);
+    return this.execute(
+      this.http.delete<boolean>(`${this.baseUrl}/eventos/fotos/${fotoId}`, { headers: this.getHeaders() }),
+      () => local
+    );
   }
 
   deleteEvento(id: number): Observable<boolean> {
-    return this.http
-      .delete<boolean>(`${this.baseUrl}/eventos/${id}`, {
-        headers: this.getHeaders(),
-      })
-      .pipe(
-        timeout(this.HTTP_TIMEOUT_MS),
-        catchError(() => of(this.mockDb.deleteEvento(id)))
-      );
+    const local = this.mockDb.deleteEvento(id);
+    return this.execute(
+      this.http.delete<boolean>(`${this.baseUrl}/eventos/${id}`, { headers: this.getHeaders() }),
+      () => local
+    );
   }
 
   // === VENDAS ===
@@ -664,60 +548,42 @@ export class ApiService {
     let params = new HttpParams();
     if (status) params = params.set('status', status);
 
-    return this.http
-      .get<VendaFoto[]>(`${this.baseUrl}/vendas`, {
-        headers: this.getHeaders(),
-        params,
-      })
-      .pipe(
-        timeout(this.HTTP_TIMEOUT_MS),
-        catchError(() => of(this.mockDb.getVendas(status)))
-      );
+    return this.execute(
+      this.http.get<VendaFoto[]>(`${this.baseUrl}/vendas`, { headers: this.getHeaders(), params }),
+      () => this.mockDb.getVendas(status)
+    );
   }
 
   createVenda(venda: Partial<VendaFoto>): Observable<VendaFoto> {
-    return this.http
-      .post<VendaFoto>(`${this.baseUrl}/vendas`, venda, {
-        headers: this.getHeaders(),
-      })
-      .pipe(
-        timeout(this.HTTP_TIMEOUT_MS),
-        catchError(() => of(this.mockDb.createVenda(venda)))
-      );
+    const local = this.mockDb.createVenda(venda);
+    return this.execute(
+      this.http.post<VendaFoto>(`${this.baseUrl}/vendas`, venda, { headers: this.getHeaders() }),
+      () => local
+    );
   }
 
   // === DESPESAS ===
   getDespesas(): Observable<Despesa[]> {
-    return this.http
-      .get<Despesa[]>(`${this.baseUrl}/despesas`, {
-        headers: this.getHeaders(),
-      })
-      .pipe(
-        timeout(this.HTTP_TIMEOUT_MS),
-        catchError(() => of(this.mockDb.getDespesas()))
-      );
+    return this.execute(
+      this.http.get<Despesa[]>(`${this.baseUrl}/despesas`, { headers: this.getHeaders() }),
+      () => this.mockDb.getDespesas()
+    );
   }
 
   createDespesa(despesa: Partial<Despesa>): Observable<Despesa> {
-    return this.http
-      .post<Despesa>(`${this.baseUrl}/despesas`, despesa, {
-        headers: this.getHeaders(),
-      })
-      .pipe(
-        timeout(this.HTTP_TIMEOUT_MS),
-        catchError(() => of(this.mockDb.createDespesa(despesa)))
-      );
+    const local = this.mockDb.createDespesa(despesa);
+    return this.execute(
+      this.http.post<Despesa>(`${this.baseUrl}/despesas`, despesa, { headers: this.getHeaders() }),
+      () => local
+    );
   }
 
   deleteDespesa(id: number): Observable<boolean> {
-    return this.http
-      .delete<boolean>(`${this.baseUrl}/despesas/${id}`, {
-        headers: this.getHeaders(),
-      })
-      .pipe(
-        timeout(this.HTTP_TIMEOUT_MS),
-        catchError(() => of(this.mockDb.deleteDespesa(id)))
-      );
+    const local = this.mockDb.deleteDespesa(id);
+    return this.execute(
+      this.http.delete<boolean>(`${this.baseUrl}/despesas/${id}`, { headers: this.getHeaders() }),
+      () => local
+    );
   }
 
   // === RELATÓRIOS & FLUXO DE CAIXA ===
@@ -727,25 +593,16 @@ export class ApiService {
     if (mes !== undefined && mes !== null) params = params.set('mes', String(mes));
     if (ano !== undefined && ano !== null) params = params.set('ano', String(ano));
 
-    return this.http
-      .get<RelatorioMensalItem[]>(`${this.baseUrl}/relatorios/mensal`, {
-        headers: this.getHeaders(),
-        params,
-      })
-      .pipe(
-        timeout(this.HTTP_TIMEOUT_MS),
-        catchError(() => of(this.mockDb.getRelatorioMensal(loja, mes, ano)))
-      );
+    return this.execute(
+      this.http.get<RelatorioMensalItem[]>(`${this.baseUrl}/relatorios/mensal`, { headers: this.getHeaders(), params }),
+      () => this.mockDb.getRelatorioMensal(loja, mes, ano)
+    );
   }
 
   getFluxoCaixa(): Observable<FluxoCaixa> {
-    return this.http
-      .get<FluxoCaixa>(`${this.baseUrl}/financeiro/fluxo-caixa`, {
-        headers: this.getHeaders(),
-      })
-      .pipe(
-        timeout(this.HTTP_TIMEOUT_MS),
-        catchError(() => of(this.mockDb.getFluxoCaixa()))
-      );
+    return this.execute(
+      this.http.get<FluxoCaixa>(`${this.baseUrl}/financeiro/fluxo-caixa`, { headers: this.getHeaders() }),
+      () => this.mockDb.getFluxoCaixa()
+    );
   }
 }
