@@ -94,19 +94,17 @@ import { RelatorioMensalItem } from '../../core/models';
               </div>
             </div>
 
-            <!-- Tabela Detalhada Conforme Requisito do PDF (Página 1) -->
-            <!-- "cada relatório precisa mostra quem criou a tarefa, loja, e os percipientes e a demanda feita" -->
-            <div class="table-responsive mt-4">
+            <!-- TABELA DETALHADA (DESKTOP E IMPRESSÃO) -->
+            <div class="table-responsive desktop-report-table mt-4">
               <table class="custom-table report-table">
                 <thead>
                   <tr>
-                    <th>LOJA / CLIENTE</th>
-                    <th>DEMANDA FEITA (TÍTULO DA TAREFA)</th>
-                    <th style="color: #ef4444; font-weight: 900;">STATUS</th>
-                    <th>QUEM CRIOU A TAREFA</th>
-                    <th>PARTICIPANTES / EXECUTORES</th>
-                    <th>PRAZO</th>
-                    <th>PROGRESSO</th>
+                    <th style="width: 18%;">LOJA / CLIENTE</th>
+                    <th style="width: 24%;">DEMANDA FEITA (TÍTULO DA TAREFA)</th>
+                    <th style="width: 12%; color: #ef4444; font-weight: 900;">STATUS</th>
+                    <th style="width: 14%;">QUEM CRIOU</th>
+                    <th style="width: 16%;">PARTICIPANTES</th>
+                    <th style="width: 16%;">PRAZO / PROGRESSO</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -133,26 +131,69 @@ import { RelatorioMensalItem } from '../../core/models';
                         <span class="text-muted text-xs" *ngIf="!item.participantes?.length">-</span>
                       </div>
                     </td>
-                    <td class="text-muted text-sm">
-                      {{ item.dataEntrega | date:'dd/MM/yyyy' }}
-                    </td>
                     <td>
-                      <div class="progress-cell">
-                        <div class="progress-bar-container" style="width: 70px;">
-                          <div class="progress-bar-fill" [style.width.%]="item.percentualConcluido || 0"></div>
+                      <div class="prazo-progress-stack">
+                        <span class="text-muted text-xs font-bold">{{ item.dataEntrega | date:'dd/MM/yyyy' }}</span>
+                        <div class="progress-cell" *ngIf="item.percentualConcluido !== undefined">
+                          <div class="progress-bar-container" style="width: 50px;">
+                            <div class="progress-bar-fill" [style.width.%]="item.percentualConcluido || 0"></div>
+                          </div>
+                          <span class="text-xs font-bold">{{ item.percentualConcluido || 0 }}%</span>
                         </div>
-                        <span class="text-xs font-bold">{{ item.percentualConcluido || 0 }}%</span>
                       </div>
                     </td>
                   </tr>
 
                   <tr *ngIf="itensRelatorio().length === 0">
-                    <td colspan="7" class="text-center py-5">
+                    <td colspan="6" class="text-center py-5">
                       <p class="text-muted mb-0">Nenhuma demanda registrada para os parâmetros selecionados.</p>
                     </td>
                   </tr>
                 </tbody>
               </table>
+            </div>
+
+            <!-- VISUALIZAÇÃO OTIMIZADA PARA MOBILE (SEM SCROLL HORIZONTAL) -->
+            <div class="mobile-report-list mt-3">
+              <div class="mobile-report-card" *ngFor="let item of itensRelatorio()">
+                <div class="mobile-card-top">
+                  <span class="mobile-card-store">{{ item.loja }}</span>
+                  <span class="badge" [ngClass]="getStatusBadgeClass(item.status)">
+                    {{ getStatusLabel(item.status) }}
+                  </span>
+                </div>
+
+                <h4 class="mobile-card-title">{{ item.tituloDemanda }}</h4>
+
+                <div class="mobile-card-meta-grid">
+                  <div class="meta-item">
+                    <span class="meta-label">CRIADOR:</span>
+                    <span class="meta-val">{{ item.criadorNome || 'Lucas Matheus' }}</span>
+                  </div>
+                  <div class="meta-item" *ngIf="item.dataEntrega">
+                    <span class="meta-label">PRAZO:</span>
+                    <span class="meta-val">{{ item.dataEntrega | date:'dd/MM/yyyy' }}</span>
+                  </div>
+                </div>
+
+                <div class="mobile-card-participants" *ngIf="item.participantes?.length">
+                  <span class="meta-label">PARTICIPANTES:</span>
+                  <div class="participantes-list">
+                    <span class="part-pill" *ngFor="let p of item.participantes">{{ p }}</span>
+                  </div>
+                </div>
+
+                <div class="mobile-card-progress" *ngIf="item.percentualConcluido !== undefined">
+                  <div class="progress-bar-container flex-1">
+                    <div class="progress-bar-fill" [style.width.%]="item.percentualConcluido || 0"></div>
+                  </div>
+                  <span class="text-xs font-bold">{{ item.percentualConcluido || 0 }}%</span>
+                </div>
+              </div>
+
+              <div *ngIf="itensRelatorio().length === 0" class="text-center py-4">
+                <p class="text-muted mb-0">Nenhuma demanda registrada para os parâmetros selecionados.</p>
+              </div>
             </div>
 
             <!-- Resumo e Assinatura do Relatório -->
@@ -277,11 +318,17 @@ import { RelatorioMensalItem } from '../../core/models';
     }
 
     .report-table {
-      min-width: 850px;
+      width: 100%;
+      min-width: 0 !important;
+      table-layout: auto;
+      border-collapse: collapse;
     }
 
     .report-table th, .report-table td {
-      white-space: nowrap;
+      white-space: normal;
+      word-break: break-word;
+      padding: 0.65rem 0.5rem;
+      vertical-align: middle;
     }
 
     .creator-badge {
@@ -294,7 +341,7 @@ import { RelatorioMensalItem } from '../../core/models';
       display: flex;
       gap: 0.35rem;
       flex-wrap: wrap;
-      max-width: 320px;
+      max-width: 100%;
       white-space: normal;
     }
 
@@ -306,6 +353,12 @@ import { RelatorioMensalItem } from '../../core/models';
       border: 1px solid var(--border-color);
       color: var(--text-primary);
       white-space: nowrap;
+    }
+
+    .prazo-progress-stack {
+      display: flex;
+      flex-direction: column;
+      gap: 0.25rem;
     }
 
     .progress-cell {
@@ -350,15 +403,135 @@ import { RelatorioMensalItem } from '../../core/models';
       margin-bottom: 0.5rem;
     }
 
-    @media (max-width: 900px) {
+    /* Mobile Card Styles */
+    .mobile-report-list {
+      display: none;
+    }
+
+    .mobile-report-card {
+      background: var(--bg-surface-elevated);
+      border: 1.5px solid var(--border-color);
+      border-radius: var(--radius-md);
+      padding: 1rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.65rem;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .mobile-card-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.5rem;
+    }
+
+    .mobile-card-store {
+      font-size: 0.95rem;
+      font-weight: 800;
+      color: var(--color-primary);
+    }
+
+    .mobile-card-title {
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: var(--text-primary);
+      margin: 0;
+      line-height: 1.3;
+    }
+
+    .mobile-card-meta-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.5rem;
+      font-size: 0.78rem;
+    }
+
+    .meta-item {
+      display: flex;
+      flex-direction: column;
+      gap: 0.15rem;
+    }
+
+    .meta-label {
+      font-size: 0.68rem;
+      font-weight: 800;
+      color: var(--text-muted);
+      letter-spacing: 0.05em;
+    }
+
+    .meta-val {
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .mobile-card-participants {
+      display: flex;
+      flex-direction: column;
+      gap: 0.3rem;
+    }
+
+    .mobile-card-progress {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      padding-top: 0.35rem;
+      border-top: 1px dashed var(--border-color);
+    }
+
+    @media (max-width: 768px) {
       .report-filters-grid { grid-template-columns: 1fr; gap: 0.75rem; }
       .report-actions-col .btn { width: 100%; }
       .report-official-header { flex-direction: column; align-items: flex-start; text-align: left; gap: 0.85rem; }
       .report-title-box { text-align: left; }
       .report-footer-section { flex-direction: column; align-items: flex-start; }
-      .printable-report-card { padding: 1.25rem 0.85rem; }
+      .printable-report-card { padding: 1.25rem 0.85rem; overflow-x: hidden !important; }
       .report-stats-box { width: 100%; justify-content: space-between; }
       .signature-box { width: 100%; margin-top: 1rem; }
+
+      .desktop-report-table {
+        display: none !important;
+      }
+      .mobile-report-list {
+        display: flex !important;
+        flex-direction: column;
+        gap: 0.75rem;
+        width: 100%;
+      }
+    }
+
+    @media print {
+      .desktop-report-table {
+        display: block !important;
+        width: 100% !important;
+        overflow: visible !important;
+      }
+      .mobile-report-list {
+        display: none !important;
+      }
+      .table-responsive {
+        overflow: visible !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        padding: 0 !important;
+      }
+      .report-table {
+        width: 100% !important;
+        min-width: 0 !important;
+        table-layout: auto !important;
+        font-size: 0.72rem !important;
+      }
+      .report-table th, .report-table td {
+        white-space: normal !important;
+        word-break: break-word !important;
+        padding: 0.4rem 0.3rem !important;
+      }
+      .printable-report-card {
+        padding: 0 !important;
+        border: none !important;
+        box-shadow: none !important;
+        overflow: visible !important;
+      }
     }
   `]
 })
