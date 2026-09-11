@@ -262,7 +262,7 @@ import { Tarefa, ChecklistItem, Municipio, Cliente } from '../../core/models';
           </div>
           <div class="header-right-actions">
             <button class="btn-delete-hdr" (click)="excluirTarefa(t)"><i class="bi bi-trash"></i> EXCLUIR</button>
-            <button class="btn-close-hdr" (click)="fecharModalDetalhes()">FECHAR</button>
+            <button class="btn-close-hdr" (click)="fecharModalDetalhes()"><i class="bi bi-x-lg"></i> <span>FECHAR</span></button>
           </div>
         </div>
 
@@ -645,13 +645,24 @@ import { Tarefa, ChecklistItem, Municipio, Cliente } from '../../core/models';
     }
     .btn-close-hdr {
       background: var(--bg-surface-elevated);
-      border: 1px solid var(--border-color);
+      border: 1.5px solid var(--border-color);
       color: var(--text-primary);
-      border-radius: 6px;
-      padding: 0.4rem 0.85rem;
+      border-radius: 8px;
+      padding: 0.45rem 1.15rem;
       font-weight: 800;
-      font-size: 0.75rem;
+      font-size: 0.78rem;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
       cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.45rem;
+      transition: all 0.2s;
+    }
+    .btn-close-hdr:hover {
+      background: var(--bg-surface-hover);
+      border-color: var(--color-primary);
+      color: var(--primary);
     }
 
     .modal-body-dark {
