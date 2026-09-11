@@ -127,8 +127,35 @@ import { LogoCliente } from '../../core/models';
             </div>
 
             <div class="form-group">
-              <label class="form-label">URL DA IMAGEM / ARQUIVO EM ALTA</label>
-              <input type="text" class="form-control" [(ngModel)]="formLogo.arquivoUrlOuBase64" name="arquivoUrlOuBase64" required placeholder="https://... ou cole o link do arquivo" />
+              <label class="form-label">ARQUIVO DA LOGO (ALTA RESOLUÇÃO)</label>
+              <div class="custom-file-upload-box" (click)="logoFileInput.click()">
+                <input 
+                  type="file" 
+                  #logoFileInput 
+                  (change)="onLogoFileSelected($event)" 
+                  accept="image/*,.svg,.png,.jpg,.jpeg,.webp,.gif,.bmp,.ai,.eps,.pdf,.ico,.tiff,.heic" 
+                  style="display: none" 
+                />
+                <div *ngIf="!formLogo.arquivoUrlOuBase64" class="upload-placeholder">
+                  <i class="bi bi-cloud-arrow-up text-primary" style="font-size: 1.8rem;"></i>
+                  <span class="upload-title">Selecionar arquivo de logo no computador</span>
+                  <small class="upload-sub">Formatos aceitos: SVG, PNG, JPG, WEBP, GIF, AI, etc.</small>
+                </div>
+                <div *ngIf="formLogo.arquivoUrlOuBase64" class="upload-preview-container" (click)="$event.stopPropagation()">
+                  <img [src]="formLogo.arquivoUrlOuBase64" alt="Logo preview" class="preview-logo-thumb" />
+                  <div class="preview-meta">
+                    <span class="preview-title"><i class="bi bi-check-circle-fill text-success"></i> Arquivo carregado</span>
+                    <div class="preview-actions">
+                      <button type="button" class="btn-action-small btn-trocar" (click)="logoFileInput.click()">
+                        <i class="bi bi-arrow-repeat"></i> Trocar
+                      </button>
+                      <button type="button" class="btn-action-small btn-remover" (click)="formLogo.arquivoUrlOuBase64 = ''">
+                        <i class="bi bi-trash"></i> Remover
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -283,6 +310,88 @@ import { LogoCliente } from '../../core/models';
       .logos-grid { grid-template-columns: 1fr; }
       .form-row-2 { grid-template-columns: 1fr; }
     }
+
+    /* Custom File Upload Box */
+    .custom-file-upload-box {
+      border: 2px dashed var(--border-color);
+      border-radius: 12px;
+      padding: 1.25rem;
+      background: rgba(124, 58, 237, 0.02);
+      cursor: pointer;
+      transition: all 0.2s ease;
+      text-align: center;
+    }
+    .custom-file-upload-box:hover {
+      border-color: var(--color-primary);
+      background: rgba(124, 58, 237, 0.05);
+    }
+    .upload-placeholder {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.35rem;
+    }
+    .upload-title {
+      font-size: 0.88rem;
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+    .upload-sub {
+      font-size: 0.75rem;
+      color: var(--text-secondary);
+    }
+    .upload-preview-container {
+      display: flex;
+      align-items: center;
+      gap: 1.25rem;
+      text-align: left;
+    }
+    .preview-logo-thumb {
+      width: 72px;
+      height: 72px;
+      object-fit: contain;
+      background: #1a1a2e;
+      border-radius: 8px;
+      border: 2px solid var(--color-primary);
+      padding: 4px;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+    }
+    .preview-meta {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+    .preview-title {
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: var(--text-primary);
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+    .preview-actions {
+      display: flex;
+      gap: 0.5rem;
+    }
+    .btn-action-small {
+      border: none;
+      padding: 0.35rem 0.75rem;
+      border-radius: 6px;
+      font-size: 0.75rem;
+      font-weight: 700;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.3rem;
+    }
+    .btn-trocar {
+      background: #ede9fe;
+      color: #6d28d9;
+    }
+    .btn-remover {
+      background: #fee2e2;
+      color: #b91c1c;
+    }
   `]
 })
 export class LogosComponent implements OnInit {
@@ -309,13 +418,32 @@ export class LogosComponent implements OnInit {
     this.formLogo = {
       formato: 'PNG',
       variante: 'Logo Principal Colorida',
-      tamanho: '2.5 MB - Alta Resolução'
+      tamanho: '2.5 MB - Alta Resolução',
+      arquivoUrlOuBase64: ''
     };
     this.modalUploadAberto.set(true);
   }
 
   fecharModalUpload(): void {
     this.modalUploadAberto.set(false);
+  }
+
+  onLogoFileSelected(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    if (input.files && input.files[0]) {
+      const file = input.files[0];
+      const reader = new FileReader();
+      const format = file.name.split('.').pop()?.toUpperCase() || 'PNG';
+      const sizeMB = (file.size / (1024 * 1024)).toFixed(1) + ' MB';
+      
+      this.formLogo.formato = format;
+      this.formLogo.tamanho = sizeMB;
+
+      reader.onload = (e: ProgressEvent<FileReader>) => {
+        this.formLogo.arquivoUrlOuBase64 = e.target?.result as string;
+      };
+      reader.readAsDataURL(file);
+    }
   }
 
   salvarLogo(): void {

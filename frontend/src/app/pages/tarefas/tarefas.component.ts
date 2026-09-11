@@ -5,7 +5,7 @@ import { ActivatedRoute } from '@angular/router';
 import { SidebarComponent } from '../../shared/components/sidebar.component';
 import { HeaderComponent } from '../../shared/components/header.component';
 import { ApiService } from '../../core/services/api.service';
-import { Tarefa, ChecklistItem } from '../../core/models';
+import { Tarefa, ChecklistItem, Municipio, Cliente } from '../../core/models';
 
 @Component({
   selector: 'app-tarefas',
@@ -17,8 +17,8 @@ import { Tarefa, ChecklistItem } from '../../core/models';
 
       <main class="main-content">
         <app-header 
-          title="Gestão de Tarefas & Produção" 
-          subtitle="Acompanhamento operacional de demandas, roteiros e checklist de entregas"
+          title="Gestão de Tarefas & Demandas" 
+          subtitle="Acompanhamento operacional de demandas, checklist dinâmico e aprovações"
           [showNewTaskButton]="true"
           (newTaskAction)="abrirModalCriacao()"
           (refreshAction)="carregarTarefas()"
@@ -29,12 +29,12 @@ import { Tarefa, ChecklistItem } from '../../core/models';
           <div class="card filters-card">
             <div class="filters-grid">
               <div class="filter-item">
-                <label class="form-label">Buscar Loja / Cliente</label>
+                <label class="form-label">Buscar Demanda ou Loja</label>
                 <div class="input-with-icon">
                   <input 
                     type="text" 
                     class="form-control" 
-                    placeholder="Ex: JM Moda Fitness, Ateliê da Ysa..."
+                    placeholder="Ex: Promoção, Beto, Mercado..."
                     [(ngModel)]="filtroLoja" 
                     (input)="carregarTarefas()"
                   />
@@ -69,22 +69,18 @@ import { Tarefa, ChecklistItem } from '../../core/models';
 
           <!-- Tabela de Tarefas -->
           <div class="card table-card">
-            <div class="table-scroll-hint">
-              <i class="bi bi-arrows-expand" style="transform: rotate(45deg);"></i>
-              <span>Use a barra de rolagem horizontal abaixo para visualizar todas as informações e ações da demanda</span>
-            </div>
-
             <div class="table-responsive">
               <table class="custom-table tarefas-table">
                 <thead>
                   <tr>
-                    <th style="width: 150px;">Status</th>
-                    <th style="min-width: 260px;">Título & Loja</th>
-                    <th style="width: 120px;">Prioridade</th>
-                    <th style="min-width: 220px;">Responsáveis</th>
-                    <th style="width: 170px;">Gravação / Entrega</th>
-                    <th style="width: 180px;">Progresso (%)</th>
-                    <th style="width: 230px; text-align: right;">Ações</th>
+                    <th style="width: 140px;">Status</th>
+                    <th style="min-width: 240px;">Demanda & Cliente</th>
+                    <th style="width: 140px;">Município</th>
+                    <th style="width: 110px;">Prioridade</th>
+                    <th style="min-width: 200px;">Responsáveis</th>
+                    <th style="width: 150px;">Prazo / Entrega</th>
+                    <th style="width: 140px;">Progresso</th>
+                    <th style="width: 180px; text-align: right;">Ações</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -95,10 +91,16 @@ import { Tarefa, ChecklistItem } from '../../core/models';
                       </span>
                     </td>
                     <td>
-                      <div class="task-title-cell">
+                      <div class="task-title-cell" (click)="abrirModalDetalhes(tarefa)" style="cursor: pointer;">
                         <strong>{{ tarefa.titulo }}</strong>
                         <span class="store-tag"><i class="bi bi-shop"></i> {{ tarefa.loja }}</span>
                       </div>
+                    </td>
+                    <td>
+                      <span class="muni-tag" *ngIf="tarefa.municipio">
+                        <i class="bi bi-geo-alt-fill text-muted"></i> {{ tarefa.municipio }}
+                      </span>
+                      <span class="text-muted text-xs" *ngIf="!tarefa.municipio">-</span>
                     </td>
                     <td>
                       <span class="badge" [ngClass]="getPrioridadeBadgeClass(tarefa.prioridade)">
@@ -110,56 +112,51 @@ import { Tarefa, ChecklistItem } from '../../core/models';
                         <span class="resp-pill" *ngFor="let r of tarefa.responsaveis">
                           {{ r }}
                         </span>
-                        <span class="text-muted text-xs" *ngIf="!tarefa.responsaveis?.length">-</span>
                       </div>
                     </td>
                     <td>
                       <div class="dates-cell">
-                        <span *ngIf="tarefa.dataGravacao" class="text-xs text-muted">
-                          <i class="bi bi-camera-video"></i> {{ tarefa.dataGravacao | date:'dd/MM/yyyy' }}
-                        </span>
-                        <span class="text-sm font-semibold" [class.text-danger]="isOverdue(tarefa)">
-                          <i class="bi bi-calendar-event"></i> {{ tarefa.dataEntrega | date:'dd/MM/yyyy' }}
+                        <span class="text-xs" [class.text-danger]="isOverdue(tarefa)">
+                          <i class="bi bi-calendar-check"></i> {{ tarefa.dataEntrega | date:'dd/MM/yyyy' }}
                         </span>
                       </div>
                     </td>
                     <td>
-                      <div class="progress-cell">
-                        <div class="progress-bar-container">
-                          <div class="progress-bar-fill" [style.width.%]="tarefa.percentualConcluido || 0"></div>
+                      <div class="progress-container">
+                        <div class="progress-bar-bg">
+                          <div 
+                            class="progress-bar-fill" 
+                            [style.width.%]="tarefa.percentualConcluido || 0"
+                            [ngClass]="getProgressBarClass(tarefa.percentualConcluido || 0)"
+                          ></div>
                         </div>
                         <span class="progress-text">{{ tarefa.percentualConcluido || 0 }}%</span>
                       </div>
                     </td>
                     <td style="text-align: right;">
-                      <div class="action-buttons-group">
-                        <button class="btn btn-secondary btn-sm" (click)="abrirChecklistModal(tarefa)" title="Ver Checklist & Briefing">
-                          <i class="bi bi-list-check"></i>
-                          <span>Checklist</span>
-                        </button>
-                        <button class="btn btn-secondary btn-sm" (click)="abrirModalEdicao(tarefa)" title="Editar Tarefa">
-                          <i class="bi bi-pencil-square"></i>
-                          <span>Editar</span>
+                      <div class="actions-group">
+                        <button 
+                          class="btn-icon" 
+                          (click)="abrirModalDetalhes(tarefa)" 
+                          title="Abrir detalhes / Checklist / Entregas"
+                        >
+                          <i class="bi bi-eye"></i>
                         </button>
                         <button 
-                          *ngIf="tarefa.status !== 'CONCLUIDA'" 
-                          class="btn btn-success btn-sm" 
-                          (click)="concluirTarefa(tarefa)" 
-                          title="Marcar como Concluída"
+                          class="btn-icon" 
+                          (click)="abrirModalEdicao(tarefa)" 
+                          title="Editar tarefa"
                         >
-                          <i class="bi bi-check-lg"></i>
+                          <i class="bi bi-pencil"></i>
                         </button>
-                        <button class="btn btn-outline-danger btn-sm" (click)="excluirTarefa(tarefa)" title="Excluir">
+                        <button 
+                          class="btn-icon btn-danger" 
+                          (click)="excluirTarefa(tarefa)" 
+                          title="Excluir tarefa"
+                        >
                           <i class="bi bi-trash"></i>
                         </button>
                       </div>
-                    </td>
-                  </tr>
-
-                  <tr *ngIf="tarefas().length === 0">
-                    <td colspan="7" class="text-center py-5">
-                      <i class="bi bi-inbox text-muted" style="font-size: 2.5rem;"></i>
-                      <p class="text-muted mt-2">Nenhuma tarefa encontrada com os filtros selecionados.</p>
                     </td>
                   </tr>
                 </tbody>
@@ -170,576 +167,1160 @@ import { Tarefa, ChecklistItem } from '../../core/models';
       </main>
     </div>
 
-    <!-- MODAL 1: CHECKLIST DA TAREFA & BRIEFING (Padrão Páginas 2 e 3 do PDF) -->
-    <div class="modal-backdrop" *ngIf="modalChecklistAberto()" (click)="fecharChecklistModal()">
-      <div class="modal-content modal-lg" (click)="$event.stopPropagation()">
-        <div class="modal-header">
-          <div>
-            <span class="badge" [ngClass]="getStatusBadgeClass(tarefaSelecionada()?.status || '')">
-              {{ getStatusLabel(tarefaSelecionada()?.status || '') }}
-            </span>
-            <h3 class="mt-1 mb-0">{{ tarefaSelecionada()?.titulo }}</h3>
-            <span class="store-badge-sub">{{ tarefaSelecionada()?.loja }}</span>
-          </div>
-          <button class="btn-ghost btn-icon" (click)="fecharChecklistModal()">
-            <i class="bi bi-x-lg"></i>
-          </button>
+    <!-- MODAL CRIAR / EDITAR TAREFA (Exatamente como em 16746.jpg) -->
+    <div class="modal-backdrop" *ngIf="showModalCriacao()">
+      <div class="modal-card modal-dark animate-fade-in">
+        <div class="modal-header modal-header-dark">
+          <h2 class="modal-title-white">{{ editandoId ? 'Editar Tarefa' : 'Nova Tarefa' }}</h2>
+          <button class="close-btn-white" (click)="fecharModalCriacao()"><i class="bi bi-x-lg"></i></button>
         </div>
 
-        <div class="modal-body">
-          <!-- Detalhes do Prazo & Responsáveis (Página 3) -->
-          <div class="task-details-summary">
-            <div>
-              <span class="text-muted text-xs">RESPONSÁVEIS:</span>
-              <p class="font-semibold mb-0">
-                {{ tarefaSelecionada()?.responsaveis?.join(', ') || 'Nenhum atribuído' }}
-              </p>
+        <div class="modal-body modal-body-dark">
+          <!-- TÍTULO DA TAREFA (16746.jpg) -->
+          <div class="form-group">
+            <label class="form-lbl-dark">TÍTULO DA TAREFA</label>
+            <input type="text" [(ngModel)]="tarefaForm.titulo" class="form-input-dark" placeholder="Ex: Caminhada Beto" />
+          </div>
+
+          <!-- LOJA / CLIENTE & PRIORIDADE (16746.jpg) -->
+          <div class="form-grid-2">
+            <div class="form-group">
+              <label class="form-lbl-dark">LOJA / CLIENTE</label>
+              <input type="text" [(ngModel)]="tarefaForm.loja" class="form-input-dark" placeholder="Ex: Novo São João" />
             </div>
-            <div>
-              <span class="text-muted text-xs">PRAZO DE ENTREGA:</span>
-              <p class="font-semibold text-primary mb-0">
-                {{ tarefaSelecionada()?.dataEntrega | date:'dd/MM/yyyy' }}
-              </p>
-            </div>
-            <div *ngIf="tarefaSelecionada()?.dataGravacao">
-              <span class="text-muted text-xs">DATA DA GRAVAÇÃO:</span>
-              <p class="font-semibold mb-0">
-                {{ tarefaSelecionada()?.dataGravacao | date:'dd/MM/yyyy' }}
-              </p>
+            <div class="form-group">
+              <label class="form-lbl-dark">PRIORIDADE</label>
+              <select [(ngModel)]="tarefaForm.prioridade" class="form-input-dark">
+                <option value="BAIXA">BAIXA</option>
+                <option value="MEDIA">MEDIA</option>
+                <option value="ALTA">ALTA</option>
+                <option value="URGENTE">URGENTE</option>
+              </select>
             </div>
           </div>
 
-          <!-- CHECKLIST DA TAREFA -->
-          <div class="checklist-box">
-            <div class="checklist-header">
-              <h4>CHECKLIST DA TAREFA</h4>
-              <span class="completion-badge">
-                {{ tarefaSelecionada()?.percentualConcluido || 0 }}% completo
-              </span>
+          <!-- DATA DA GRAVAÇÃO & DATA DE ENTREGA (16746.jpg) -->
+          <div class="form-grid-2">
+            <div class="form-group">
+              <label class="form-lbl-dark">DATA DA GRAVAÇÃO</label>
+              <input type="date" [(ngModel)]="tarefaForm.dataGravacao" class="form-input-dark" />
             </div>
-
-            <div class="progress-bar-container mb-3">
-              <div class="progress-bar-fill" [style.width.%]="tarefaSelecionada()?.percentualConcluido || 0"></div>
-            </div>
-
-            <div class="checklist-items-list">
-              <div 
-                class="checklist-item" 
-                *ngFor="let item of tarefaSelecionada()?.checklist"
-                [class.item-done]="item.concluido"
-                (click)="toggleChecklistItem(item)"
-              >
-                <input 
-                  type="checkbox" 
-                  [checked]="item.concluido" 
-                  (click)="$event.stopPropagation(); toggleChecklistItem(item)"
-                />
-                <span class="item-desc">{{ item.descricao }}</span>
-              </div>
+            <div class="form-group">
+              <label class="form-lbl-dark">DATA DE ENTREGA / PRAZO</label>
+              <input type="date" [(ngModel)]="tarefaForm.dataEntrega" class="form-input-dark" />
             </div>
           </div>
 
-          <!-- DESCRIÇÃO BRIEFING (Página 2) -->
-          <div class="briefing-box mt-4">
-            <h5 class="briefing-title">DESCRIÇÃO BRIEFING</h5>
-            <div class="briefing-content">
-              <p>{{ tarefaSelecionada()?.briefing || tarefaSelecionada()?.descricao || 'Sem briefing detalhado cadastrado.' }}</p>
+          <!-- STATUS & RESPONSÁVEIS (16746.jpg) -->
+          <div class="form-grid-2">
+            <div class="form-group">
+              <label class="form-lbl-dark">STATUS</label>
+              <select [(ngModel)]="tarefaForm.status" class="form-input-dark">
+                <option value="A_FAZER">A Fazer</option>
+                <option value="EM_DESENVOLVIMENTO">Em Desenvolvimento</option>
+                <option value="EM_REVISAO">Em Revisão</option>
+                <option value="NAO_HOMOLOGADA">Não Homologada</option>
+                <option value="CONCLUIDA">Concluída</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-lbl-dark">RESPONSÁVEIS (SEPARADOS POR VÍRGULA)</label>
+              <input type="text" [(ngModel)]="responsaveisString" class="form-input-dark" placeholder="Igor Santos, Edyllaine Silva, Ingrid" />
             </div>
           </div>
-        </div>
 
-        <div class="modal-footer">
-          <button class="btn btn-outline-danger" (click)="excluirTarefa(tarefaSelecionada()!); fecharChecklistModal()">
-            <i class="bi bi-trash"></i>
-            <span>EXCLUIR</span>
-          </button>
-          <button class="btn btn-secondary" (click)="fecharChecklistModal()">
-            FECHAR
-          </button>
+          <!-- MUNICÍPIO DE ATENDIMENTO (16746.jpg - indicação em vermelho) -->
+          <div class="form-group">
+            <label class="form-lbl-dark highlight-label">MUNICÍPIO DE ATENDIMENTO</label>
+            <select [(ngModel)]="tarefaForm.municipio" class="form-input-dark">
+              <option *ngFor="let m of municipios()" [value]="m.nome">{{ m.nome }} - {{ m.uf }}</option>
+            </select>
+          </div>
+
+          <!-- DESCRIÇÃO & BRIEFING DETALHADO (16746.jpg) -->
+          <div class="form-group">
+            <label class="form-lbl-dark">DESCRIÇÃO & BRIEFING DETALHADO</label>
+            <textarea rows="4" [(ngModel)]="tarefaForm.briefing" class="form-input-dark" placeholder="Instruções de gravação, roteiro, formatos esperados..."></textarea>
+          </div>
+
+          <div class="modal-actions-right">
+            <button class="btn-cancel-dark" (click)="fecharModalCriacao()">Cancelar</button>
+            <button class="btn-save-dark" (click)="salvarTarefa()">Salvar Tarefa</button>
+          </div>
         </div>
       </div>
     </div>
 
-    <!-- MODAL 2: CRIAÇÃO / EDIÇÃO DE TAREFA -->
-    <div class="modal-backdrop" *ngIf="modalFormAberto()" (click)="fecharModalForm()">
-      <div class="modal-content" (click)="$event.stopPropagation()">
-        <div class="modal-header">
-          <h3>{{ emEdicao() ? 'Editar Tarefa' : 'Nova Tarefa' }}</h3>
-          <button class="btn-ghost btn-icon" (click)="fecharModalForm()">
-            <i class="bi bi-x-lg"></i>
-          </button>
+    <!-- MODAL DETALHES DA TAREFA & CHECKLIST EDITÁVEL & ARQUIVOS FINAIS (16748.jpg, 16735.jpg, 16737.jpg) -->
+    <div class="modal-backdrop" *ngIf="showModalDetalhes()">
+      <div class="modal-card modal-dark modal-lg animate-fade-in" *ngIf="tarefaSelecionada() as t">
+        <div class="modal-header modal-header-dark">
+          <div>
+            <span class="badge-status-top" [ngClass]="t.status.toLowerCase()">{{ getStatusLabel(t.status) }}</span>
+            <h2 class="modal-title-white mt-1">{{ t.titulo }}</h2>
+            <span class="store-subtitle-purple">{{ t.loja }}</span>
+          </div>
+          <div class="header-right-actions">
+            <button class="btn-delete-hdr" (click)="excluirTarefa(t)"><i class="bi bi-trash"></i> EXCLUIR</button>
+            <button class="btn-close-hdr" (click)="fecharModalDetalhes()">FECHAR</button>
+          </div>
         </div>
 
-        <form (ngSubmit)="salvarTarefa()">
-          <div class="modal-body">
-            <div class="form-group">
-              <label class="form-label">TÍTULO DA TAREFA</label>
-              <input type="text" class="form-control" [(ngModel)]="formTarefa.titulo" name="titulo" required placeholder="Ex: Produção de conteúdo de marketing" />
+        <div class="modal-body modal-body-dark">
+          <!-- Metadados da Demanda (16748.jpg) -->
+          <div class="task-info-top-grid">
+            <div class="info-block">
+              <span class="info-lbl">RESPONSÁVEIS:</span>
+              <span class="info-val">{{ t.responsaveis.join(', ') || 'Nenhum' }}</span>
             </div>
-
-            <div class="form-row-2">
-              <div class="form-group">
-                <label class="form-label">LOJA / CLIENTE</label>
-                <input type="text" class="form-control" [(ngModel)]="formTarefa.loja" name="loja" required placeholder="Ex: ATELIÊ DA YSA" />
-              </div>
-
-              <div class="form-group">
-                <label class="form-label">PRIORIDADE</label>
-                <select class="form-select" [(ngModel)]="formTarefa.prioridade" name="prioridade">
-                  <option value="BAIXA">BAIXA</option>
-                  <option value="MEDIA">MÉDIA</option>
-                  <option value="ALTA">ALTA</option>
-                  <option value="URGENTE">URGENTE</option>
-                </select>
-              </div>
+            <div class="info-block">
+              <span class="info-lbl">PRAZO DE ENTREGA:</span>
+              <span class="info-val">{{ t.dataEntrega | date:'dd/MM/yyyy' }}</span>
             </div>
-
-            <div class="form-row-2">
-              <div class="form-group">
-                <label class="form-label">DATA DA GRAVAÇÃO</label>
-                <input type="date" class="form-control" [(ngModel)]="formTarefa.dataGravacao" name="dataGravacao" />
-              </div>
-
-              <div class="form-group">
-                <label class="form-label">DATA DE ENTREGA / PRAZO</label>
-                <input type="date" class="form-control" [(ngModel)]="formTarefa.dataEntrega" name="dataEntrega" required />
-              </div>
+            <div class="info-block">
+              <span class="info-lbl">DATA DA GRAVAÇÃO:</span>
+              <span class="info-val">{{ t.dataGravacao ? (t.dataGravacao | date:'dd/MM/yyyy') : '—' }}</span>
             </div>
-
-            <div class="form-row-2">
-              <div class="form-group">
-                <label class="form-label">STATUS</label>
-                <select class="form-select" [(ngModel)]="formTarefa.status" name="status">
-                  <option value="A_FAZER">A Fazer</option>
-                  <option value="EM_DESENVOLVIMENTO">Em Desenvolvimento</option>
-                  <option value="EM_REVISAO">Em Revisão</option>
-                  <option value="NAO_HOMOLOGADA">Não Homologada</option>
-                  <option value="ATRASADA">Atrasada</option>
-                  <option value="CONCLUIDA">Concluída</option>
-                </select>
-              </div>
-
-              <div class="form-group">
-                <label class="form-label">RESPONSÁVEIS (separados por vírgula)</label>
-                <input type="text" class="form-control" [(ngModel)]="responsaveisInput" name="responsaveisInput" placeholder="Ex: Edyllaine Silva, Igor Santos" />
-              </div>
-            </div>
-
-            <div class="form-group">
-              <label class="form-label">DESCRIÇÃO & BRIEFING DETALHADO</label>
-              <textarea class="form-control" rows="4" [(ngModel)]="formTarefa.briefing" name="briefing" placeholder="Instruções de gravação, roteiro, formatos esperados..."></textarea>
+            <div class="info-block" *ngIf="t.municipio">
+              <span class="info-lbl">MUNICÍPIO:</span>
+              <span class="info-val">{{ t.municipio }}</span>
             </div>
           </div>
 
-          <div class="modal-footer">
-            <button type="button" class="btn btn-secondary" (click)="fecharModalForm()">Cancelar</button>
-            <button type="submit" class="btn btn-primary">Salvar Tarefa</button>
+          <!-- CARD: SISTEMA DE APROVAÇÃO EXTERNA (16735.jpg) -->
+          <div class="aprovacao-banner-card">
+            <div>
+              <span class="aprv-tag">SISTEMA DE APROVAÇÃO</span>
+              <p class="aprv-heading">Link de aprovação externa gerado</p>
+              <span class="aprv-status-state">Estado: <strong>{{ t.statusAprovacao || 'PENDING' }}</strong></span>
+            </div>
+            <button class="btn-copiar-link-purple" (click)="copiarLinkAprovacao(t)">
+              <i class="bi bi-link-45deg"></i> {{ linkCopiado ? 'Link Copiado!' : 'Copiar Link' }}
+            </button>
           </div>
-        </form>
+
+          <!-- SEÇÃO: CHECKLIST DINÂMICO & EDITÁVEL (16748.jpg - "deixa uma forma de editar o checklist") -->
+          <div class="checklist-section-box">
+            <div class="checklist-hdr-row">
+              <h3 class="checklist-title">CHECKLIST DA TAREFA</h3>
+              <span class="percent-badge">{{ t.percentualConcluido || 0 }}% completo</span>
+            </div>
+
+            <!-- Lista de Itens do Checklist -->
+            <div class="checklist-items-stack">
+              <div class="checklist-row-item" *ngFor="let item of t.checklist; let idx = index">
+                <label class="custom-checkbox-container">
+                  <input type="checkbox" [checked]="item.concluido" (change)="toggleChecklistItem(t, item)" />
+                  <span class="checkmark"></span>
+                  <span class="item-text" [class.item-done]="item.concluido">{{ item.descricao }}</span>
+                </label>
+                <button class="btn-remove-check-item" (click)="removerItemChecklist(t, idx)" title="Remover este item">
+                  <i class="bi bi-x"></i>
+                </button>
+              </div>
+            </div>
+
+            <!-- Adicionar Novo Item ao Checklist (16748.jpg) -->
+            <div class="add-check-item-row">
+              <input 
+                type="text" 
+                [(ngModel)]="novoItemDescricao" 
+                placeholder="Adicionar novo item de checklist para esta demanda..." 
+                class="form-input-dark"
+                (keyup.enter)="adicionarItemChecklist(t)"
+              />
+              <button class="btn-add-item-check" (click)="adicionarItemChecklist(t)">
+                <i class="bi bi-plus-lg"></i> Adicionar
+              </button>
+            </div>
+          </div>
+
+          <!-- SEÇÃO: ADICIONAR ARQUIVOS FINAIS CONCLUÍDOS (16737.jpg) -->
+          <div class="arquivos-section-box">
+            <h3 class="arquivos-title">ADICIONAR ARQUIVOS FINAIS CONCLUÍDOS</h3>
+            
+            <div class="upload-dropzone" (click)="taskFileInput.click()">
+              <input 
+                type="file" 
+                #taskFileInput 
+                multiple 
+                (change)="onUploadArquivosFinais($event, t)" 
+                accept="image/*,video/*,.png,.jpg,.jpeg,.webp,.gif,.bmp,.svg,.pdf,.zip,.mp4,.mov" 
+                style="display: none" 
+              />
+              <i class="bi bi-cloud-arrow-up text-primary"></i>
+              <p class="dropzone-text">Clique para selecionar arquivos no seu computador</p>
+              <span class="dropzone-sub">Compatível com todos os formatos de foto, vídeo e arte (PNG, JPG, MP4, PDF, etc.)</span>
+            </div>
+
+            <!-- Grid de Arquivos Anexados com botão X para remover (16737.jpg) -->
+            <div class="arquivos-attached-grid" *ngIf="t.arquivosFinais && t.arquivosFinais.length > 0">
+              <div class="attached-file-pill" *ngFor="let arq of t.arquivosFinais">
+                <i class="bi bi-file-earmark-image"></i>
+                <span class="attached-name">{{ arq.nome }}</span>
+                <button class="btn-del-attached" (click)="removerArquivoFinal(t, arq.id!)">
+                  <i class="bi bi-x"></i>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- SEÇÃO: OBSERVAÇÕES & COMENTÁRIOS (16737.jpg) -->
+          <div class="observacoes-section-box">
+            <h3 class="obs-title">OBSERVAÇÕES</h3>
+            
+            <div class="obs-list" *ngIf="t.observacoes && t.observacoes.length > 0; else semObs">
+              <div class="obs-item-bubble" *ngFor="let o of t.observacoes">
+                <div class="obs-meta">
+                  <strong>{{ o.autorNome }}</strong>
+                  <span>{{ o.dataHora }}</span>
+                </div>
+                <p class="obs-text">{{ o.texto }}</p>
+              </div>
+            </div>
+
+            <ng-template #semObs>
+              <p class="sem-obs-text">Sem observações na entrega.</p>
+            </ng-template>
+
+            <!-- Input Nova Observação -->
+            <div class="add-obs-form" *ngIf="addObsOpen">
+              <textarea 
+                rows="2" 
+                [(ngModel)]="novaObservacaoTexto" 
+                placeholder="Digite sua observação sobre a entrega..." 
+                class="form-input-dark"
+              ></textarea>
+              <div class="obs-form-actions">
+                <button class="btn-cancel-dark btn-sm" (click)="addObsOpen = false">Cancelar</button>
+                <button class="btn-save-dark btn-sm" (click)="adicionarObservacao(t)">Salvar Observação</button>
+              </div>
+            </div>
+
+            <button class="btn-add-obs-trigger" *ngIf="!addObsOpen" (click)="addObsOpen = true">
+              <i class="bi bi-chat-left-text"></i> ADICIONAR OBSERVAÇÃO
+            </button>
+          </div>
+
+          <!-- BRIEFING -->
+          <div class="briefing-box" *ngIf="t.briefing || t.descricao">
+            <span class="info-lbl">DESCRIÇÃO BRIEFING</span>
+            <p class="briefing-content">{{ t.briefing || t.descricao }}</p>
+          </div>
+        </div>
       </div>
     </div>
   `,
   styles: [`
-    .filters-card {
-      margin-bottom: 1.25rem;
-      width: 100%;
-      max-width: 100%;
+    .app-container {
+      display: flex;
+      min-height: 100vh;
+      background: var(--bg-primary);
+    }
+    .main-content {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
       min-width: 0;
-      overflow: hidden;
-      box-sizing: border-box;
+    }
+    .page-body {
+      padding: 1.5rem 2rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+    }
+
+    .filters-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 1.25rem;
+    }
+    .filters-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 1rem;
+    }
+    .form-label {
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: var(--text-secondary);
+      margin-bottom: 0.35rem;
+      display: block;
+    }
+    .form-control, .form-select {
+      width: 100%;
+      padding: 0.65rem 0.85rem;
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      background: var(--card-bg);
+      color: var(--text-primary);
+      font-size: 0.88rem;
+      outline: none;
     }
 
     .table-card {
-      width: 100%;
-      max-width: 100%;
-      min-width: 0;
-      overflow: hidden;
-      box-sizing: border-box;
+      background: var(--card-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 1rem;
+      box-shadow: 0 4px 14px rgba(0,0,0,0.03);
     }
-
-    .table-responsive {
-      width: 100%;
-      max-width: 100%;
-      overflow-x: auto;
-      overflow-y: hidden;
-      padding-bottom: 0.85rem;
-      scrollbar-width: thin;
-      scrollbar-color: var(--color-primary) var(--bg-surface-elevated);
+    .tarefas-table th {
+      font-size: 0.72rem;
+      font-weight: 800;
+      color: var(--text-secondary);
+      padding: 0.75rem;
+      border-bottom: 1px solid var(--border-color);
+    }
+    .tarefas-table td {
+      padding: 0.85rem 0.75rem;
+      border-bottom: 1px solid var(--border-color);
+      vertical-align: middle;
+      font-size: 0.84rem;
+    }
+    .task-title-cell strong {
+      color: var(--text-primary);
       display: block;
-      -webkit-overflow-scrolling: touch;
-      box-sizing: border-box;
+      margin-bottom: 0.15rem;
     }
-
-    .table-responsive::-webkit-scrollbar {
-      height: 10px;
-    }
-
-    .table-responsive::-webkit-scrollbar-track {
-      background: var(--bg-surface-elevated);
-      border-radius: 8px;
-    }
-
-    .table-responsive::-webkit-scrollbar-thumb {
-      background: var(--color-primary);
-      border-radius: 8px;
-    }
-
-    .tarefas-table {
-      width: 100%;
-      min-width: 1280px;
-      border-collapse: separate;
-      border-spacing: 0;
-    }
-
-    .tarefas-table th, .tarefas-table td {
-      white-space: nowrap;
-    }
-
-    .filters-grid {
-      display: grid;
-      grid-template-columns: 2fr 1fr 1fr;
-      gap: 1.25rem;
-    }
-
-    .task-title-cell {
-      display: flex;
-      flex-direction: column;
-      gap: 0.2rem;
-    }
-
     .store-tag {
+      font-size: 0.75rem;
+      color: var(--primary);
+      font-weight: 600;
+    }
+    .muni-tag {
       font-size: 0.75rem;
       color: var(--text-secondary);
       font-weight: 600;
     }
-
     .responsaveis-tags {
       display: flex;
-      gap: 0.35rem;
       flex-wrap: wrap;
+      gap: 0.3rem;
     }
-
     .resp-pill {
-      font-size: 0.725rem;
-      background: var(--bg-surface-elevated);
-      border: 1px solid var(--border-color);
-      padding: 0.2rem 0.5rem;
-      border-radius: var(--radius-sm);
-      color: var(--text-primary);
-    }
-
-    .dates-cell {
-      display: flex;
-      flex-direction: column;
-      gap: 0.15rem;
-    }
-
-    .progress-cell {
-      display: flex;
-      align-items: center;
-      gap: 0.75rem;
-    }
-
-    .progress-text {
-      font-size: 0.75rem;
+      background: rgba(124, 58, 237, 0.08);
+      color: var(--primary);
+      font-size: 0.7rem;
       font-weight: 700;
-      color: var(--text-muted);
-      min-width: 32px;
+      padding: 0.2rem 0.45rem;
+      border-radius: 4px;
     }
 
-    .action-buttons-group {
+    .progress-container {
       display: flex;
       align-items: center;
-      justify-content: flex-end;
-      gap: 0.4rem;
-    }
-
-    .row-overdue {
-      background: rgba(244, 63, 94, 0.04) !important;
-    }
-
-    /* Modal Checklist Styles (Páginas 2 e 3 do PDF) */
-    .task-details-summary {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 1rem;
-      padding: 1rem;
-      background: var(--bg-surface-elevated);
-      border-radius: var(--radius-md);
-      margin-bottom: 1.5rem;
-    }
-
-    .store-badge-sub {
-      font-size: 0.85rem;
-      font-weight: 700;
-      color: var(--color-primary);
-      text-transform: uppercase;
-      display: block;
-      margin-top: 0.2rem;
-    }
-
-    .checklist-box {
-      border: 1px solid var(--border-color);
-      border-radius: var(--radius-md);
-      padding: 1.25rem;
-      background: var(--bg-surface);
-    }
-
-    .checklist-header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      margin-bottom: 0.75rem;
-    }
-
-    .checklist-header h4 {
-      font-size: 0.95rem;
-      margin: 0;
-      letter-spacing: 0.05em;
-    }
-
-    .completion-badge {
-      font-size: 0.8rem;
-      font-weight: 800;
-      color: var(--color-teal);
-    }
-
-    .checklist-items-list {
-      display: flex;
-      flex-direction: column;
       gap: 0.5rem;
-      max-height: 260px;
-      overflow-y: auto;
     }
-
-    .checklist-item {
-      display: flex;
-      align-items: center;
-      gap: 0.75rem;
-      padding: 0.55rem 0.75rem;
-      border-radius: var(--radius-sm);
-      background: var(--bg-surface-elevated);
-      cursor: pointer;
-      transition: background 0.15s;
+    .progress-bar-bg {
+      flex: 1;
+      height: 6px;
+      background: rgba(0,0,0,0.08);
+      border-radius: 3px;
+      overflow: hidden;
     }
-
-    .checklist-item:hover {
-      background: var(--bg-surface-hover);
+    .progress-bar-fill {
+      height: 100%;
+      background: #7c3aed;
+      border-radius: 3px;
     }
-
-    .checklist-item.item-done .item-desc {
-      text-decoration: line-through;
-      color: var(--text-muted);
-    }
-
-    .item-desc {
-      font-size: 0.875rem;
-    }
-
-    .briefing-box {
-      border: 1px solid var(--border-color);
-      border-radius: var(--radius-md);
-      padding: 1.25rem;
-      background: var(--bg-surface-elevated);
-    }
-
-    .briefing-title {
-      font-size: 0.85rem;
-      font-weight: 800;
-      letter-spacing: 0.05em;
-      margin-bottom: 0.75rem;
+    .progress-bar-fill.bg-success { background: #10b981; }
+    .progress-text {
+      font-size: 0.72rem;
+      font-weight: 700;
       color: var(--text-secondary);
     }
 
-    .briefing-content p {
-      font-size: 0.875rem;
+    .actions-group {
+      display: flex;
+      justify-content: flex-end;
+      gap: 0.4rem;
+    }
+    .btn-icon {
+      background: none;
+      border: 1px solid var(--border-color);
+      width: 32px;
+      height: 32px;
+      border-radius: 6px;
       color: var(--text-primary);
-      line-height: 1.6;
-      margin: 0;
-      white-space: pre-line;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .btn-icon.btn-danger {
+      color: #ef4444;
+      border-color: #fee2e2;
     }
 
-    .form-row-2 {
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.75);
+      backdrop-filter: blur(8px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1050;
+      padding: 1rem;
+    }
+    .modal-dark {
+      background: var(--bg-surface) !important;
+      color: var(--text-primary) !important;
+      border: 1.5px solid var(--border-color);
+      border-radius: 16px;
+      width: 100%;
+      max-width: 560px;
+      max-height: 90vh;
+      overflow-y: auto;
+      box-shadow: 0 25px 60px -15px rgba(0,0,0,0.5);
+    }
+    .modal-lg {
+      max-width: 740px;
+    }
+    .modal-header-dark {
+      padding: 1.25rem 1.75rem;
+      border-bottom: 1.5px solid var(--border-color);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: var(--bg-surface);
+    }
+    .modal-title-white {
+      font-size: 1.35rem;
+      font-weight: 800;
+      color: var(--text-primary);
+      margin: 0;
+    }
+    .store-subtitle-purple {
+      font-size: 0.75rem;
+      font-weight: 800;
+      color: var(--primary);
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+    }
+    .badge-status-top {
+      font-size: 0.68rem;
+      font-weight: 800;
+      padding: 0.25rem 0.6rem;
+      border-radius: 6px;
+      text-transform: uppercase;
+    }
+    .badge-status-top.a_fazer { background: rgba(16, 185, 129, 0.15); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.3); }
+    .badge-status-top.concluida { background: rgba(16, 185, 129, 0.15); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.3); }
+
+    .close-btn-white {
+      background: var(--bg-surface-elevated);
+      border: 1px solid var(--border-color);
+      color: var(--text-primary);
+      border-radius: 8px;
+      width: 34px;
+      height: 34px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .close-btn-white:hover {
+      background: var(--bg-surface-hover);
+      color: var(--primary);
+    }
+    .header-right-actions {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+    .btn-delete-hdr {
+      background: none;
+      border: none;
+      color: #ef4444;
+      font-weight: 800;
+      font-size: 0.8rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+    }
+    .btn-close-hdr {
+      background: var(--bg-surface-elevated);
+      border: 1px solid var(--border-color);
+      color: var(--text-primary);
+      border-radius: 6px;
+      padding: 0.4rem 0.85rem;
+      font-weight: 800;
+      font-size: 0.75rem;
+      cursor: pointer;
+    }
+
+    .modal-body-dark {
+      padding: 1.75rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1.25rem;
+      background: var(--bg-surface);
+    }
+    .form-lbl-dark {
+      font-size: 0.8rem;
+      font-weight: 800;
+      color: var(--text-primary);
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      margin-bottom: 0.4rem;
+      display: block;
+    }
+    .highlight-label {
+      color: var(--primary);
+    }
+    .form-input-dark {
+      width: 100%;
+      padding: 0.75rem 0.95rem;
+      border: 1.5px solid var(--border-color);
+      border-radius: 8px;
+      background: var(--bg-surface);
+      color: var(--text-primary);
+      font-size: 0.9rem;
+      font-weight: 600;
+      outline: none;
+      transition: all 0.2s ease;
+    }
+    .form-input-dark:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px var(--color-primary-light);
+    }
+
+    /* Grid Metadados (16748.jpg) */
+    .task-info-top-grid {
       display: grid;
-      grid-template-columns: 1fr 1fr;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 1rem;
+      background: var(--bg-surface-elevated);
+      padding: 1.2rem;
+      border-radius: 12px;
+      border: 1.5px solid var(--border-color);
+    }
+    .info-lbl {
+      font-size: 0.72rem;
+      font-weight: 800;
+      color: var(--text-secondary);
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      display: block;
+    }
+    .info-val {
+      font-size: 0.92rem;
+      font-weight: 800;
+      color: var(--text-primary);
+    }
+
+    /* Card Aprovação (16735.jpg) */
+    .aprovacao-banner-card {
+      background: rgba(124, 58, 237, 0.08);
+      border: 1.5px solid rgba(124, 58, 237, 0.25);
+      border-radius: 12px;
+      padding: 1.1rem 1.35rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
       gap: 1rem;
     }
+    .aprv-tag {
+      font-size: 0.68rem;
+      font-weight: 800;
+      color: var(--primary);
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+    }
+    .aprv-heading {
+      font-size: 0.95rem;
+      font-weight: 800;
+      color: var(--text-primary);
+      margin: 0.2rem 0;
+    }
+    .aprv-status-state {
+      font-size: 0.78rem;
+      color: var(--text-secondary);
+      font-weight: 600;
+    }
+    .btn-copiar-link-purple {
+      background: var(--color-primary-gradient);
+      color: #fff;
+      border: none;
+      padding: 0.65rem 1.2rem;
+      border-radius: 8px;
+      font-weight: 800;
+      font-size: 0.85rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      box-shadow: 0 4px 12px rgba(124, 58, 237, 0.35);
+      transition: all 0.2s;
+    }
+    .btn-copiar-link-purple:hover {
+      box-shadow: 0 6px 18px rgba(124, 58, 237, 0.5);
+      transform: translateY(-1px);
+    }
 
-    @media (max-width: 768px) {
-      .filters-grid { grid-template-columns: 1fr; }
-      .form-row-2 { grid-template-columns: 1fr; }
-      .task-details-summary { grid-template-columns: 1fr; }
+    /* Checklist Box (16748.jpg) */
+    .checklist-section-box {
+      background: var(--bg-surface-elevated);
+      border: 1.5px solid var(--border-color);
+      border-radius: 12px;
+      padding: 1.25rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+    .checklist-hdr-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 0.5rem;
+    }
+    .checklist-title {
+      font-size: 0.88rem;
+      font-weight: 800;
+      color: var(--text-primary);
+      margin: 0;
+      letter-spacing: 0.04em;
+    }
+    .percent-badge {
+      font-size: 0.82rem;
+      font-weight: 800;
+      color: #10b981;
+    }
+    .checklist-items-stack {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+    .checklist-row-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: var(--bg-surface);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 0.7rem 0.95rem;
+    }
+    .custom-checkbox-container {
+      display: flex;
+      align-items: center;
+      gap: 0.65rem;
+      cursor: pointer;
+      font-size: 0.88rem;
+      font-weight: 600;
+      color: var(--text-primary);
+      flex: 1;
+    }
+    .custom-checkbox-container input {
+      accent-color: var(--primary);
+      width: 17px;
+      height: 17px;
+    }
+    .item-done {
+      text-decoration: line-through;
+      color: var(--text-muted);
+    }
+    .btn-remove-check-item {
+      background: none;
+      border: none;
+      color: #ef4444;
+      cursor: pointer;
+      font-size: 1.1rem;
+      padding: 0;
+    }
+    .add-check-item-row {
+      display: flex;
+      gap: 0.5rem;
+      margin-top: 0.5rem;
+    }
+    .btn-add-item-check {
+      background: var(--color-primary-gradient);
+      color: #fff;
+      border: none;
+      padding: 0 1.25rem;
+      border-radius: 8px;
+      font-weight: 800;
+      font-size: 0.85rem;
+      cursor: pointer;
+      white-space: nowrap;
+      box-shadow: 0 4px 10px rgba(124, 58, 237, 0.3);
+    }
+
+    /* Seção Arquivos (16737.jpg) */
+    .arquivos-section-box {
+      background: var(--bg-surface-elevated);
+      border: 1.5px solid var(--border-color);
+      border-radius: 12px;
+      padding: 1.25rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+    .arquivos-title {
+      font-size: 0.8rem;
+      font-weight: 800;
+      color: var(--text-primary);
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      margin: 0;
+    }
+    .upload-dropzone {
+      border: 2px dashed var(--border-color);
+      border-radius: 10px;
+      padding: 1.25rem;
+      text-align: center;
+      cursor: pointer;
+      background: var(--bg-surface);
+      transition: all 0.2s;
+    }
+    .upload-dropzone:hover {
+      background: var(--color-primary-light);
+      border-color: var(--primary);
+    }
+    .upload-dropzone i {
+      font-size: 1.8rem;
+      color: var(--primary);
+    }
+    .dropzone-text {
+      font-size: 0.9rem;
+      font-weight: 800;
+      color: var(--text-primary);
+      margin: 0.35rem 0 0.15rem 0;
+    }
+    .dropzone-sub {
+      font-size: 0.75rem;
+      color: var(--text-secondary);
+      font-weight: 600;
+    }
+    .arquivos-attached-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.5rem;
+      margin-top: 0.5rem;
+    }
+    .attached-file-pill {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 0.65rem 0.85rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 0.84rem;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+    .attached-name {
+      flex: 1;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .btn-del-attached {
+      background: none;
+      border: none;
+      color: #ef4444;
+      cursor: pointer;
+      font-size: 1rem;
+    }
+
+    /* Observações (16737.jpg) */
+    .observacoes-section-box {
+      background: var(--bg-surface-elevated);
+      border: 1.5px solid var(--border-color);
+      border-radius: 12px;
+      padding: 1.25rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+    .obs-title {
+      font-size: 0.8rem;
+      font-weight: 800;
+      color: var(--text-primary);
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      margin: 0;
+    }
+    .sem-obs-text {
+      font-size: 0.85rem;
+      color: var(--text-secondary);
+      font-weight: 500;
+      margin: 0;
+    }
+    .obs-item-bubble {
+      background: var(--bg-surface);
+      border-left: 3.5px solid var(--primary);
+      border: 1px solid var(--border-color);
+      border-left-width: 4px;
+      border-radius: 8px;
+      padding: 0.75rem 0.95rem;
+      font-size: 0.85rem;
+    }
+    .obs-meta {
+      display: flex;
+      justify-content: space-between;
+      color: var(--primary);
+      font-weight: 700;
+      font-size: 0.75rem;
+      margin-bottom: 0.25rem;
+    }
+    .obs-text {
+      margin: 0;
+      color: var(--text-primary);
+      font-weight: 500;
+    }
+    .btn-add-obs-trigger {
+      background: var(--bg-surface);
+      border: 1.5px solid var(--border-color);
+      color: var(--text-primary);
+      padding: 0.7rem;
+      border-radius: 8px;
+      font-weight: 700;
+      font-size: 0.85rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.45rem;
+      transition: all 0.2s;
+    }
+    .btn-add-obs-trigger:hover {
+      background: var(--bg-surface-hover);
+      border-color: var(--primary);
+    }
+    .add-obs-form {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+    .obs-form-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 0.5rem;
+    }
+
+    /* Briefing */
+    .briefing-box {
+      background: var(--bg-surface-elevated);
+      border: 1.5px solid var(--border-color);
+      border-radius: 12px;
+      padding: 1.25rem;
+    }
+    .briefing-content {
+      font-size: 0.88rem;
+      color: var(--text-primary);
+      font-weight: 500;
+      margin: 0.35rem 0 0 0;
+      line-height: 1.5;
+    }
+
+    .modal-actions-right {
+      display: flex;
+      justify-content: flex-end;
+      gap: 0.75rem;
+      margin-top: 0.75rem;
+    }
+    .btn-cancel-dark {
+      background: var(--bg-surface-elevated);
+      border: 1.5px solid var(--border-color);
+      color: var(--text-primary);
+      padding: 0.7rem 1.35rem;
+      border-radius: 8px;
+      font-weight: 700;
+      font-size: 0.88rem;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .btn-cancel-dark:hover {
+      background: var(--bg-surface-hover);
+      border-color: var(--border-subtle);
+    }
+    .btn-save-dark {
+      background: var(--color-primary-gradient);
+      color: #fff;
+      border: none;
+      padding: 0.7rem 1.5rem;
+      border-radius: 8px;
+      font-weight: 800;
+      font-size: 0.88rem;
+      cursor: pointer;
+      box-shadow: 0 4px 14px rgba(124, 58, 237, 0.35);
+      transition: all 0.2s;
+    }
+    .btn-save-dark:hover {
+      box-shadow: 0 6px 20px rgba(124, 58, 237, 0.5);
+      filter: brightness(1.06);
+      transform: translateY(-1px);
+    }
+    .btn-sm {
+      padding: 0.4rem 0.85rem;
+      font-size: 0.8rem;
     }
   `]
 })
 export class TarefasComponent implements OnInit {
-  private apiService = inject(ApiService);
+  private api = inject(ApiService);
   private route = inject(ActivatedRoute);
 
   tarefas = signal<Tarefa[]>([]);
-  filtroLoja: string = '';
-  filtroStatus: string = '';
-  filtroPrioridade: string = '';
+  municipios = signal<Municipio[]>([]);
+  clientes = signal<Cliente[]>([]);
 
-  // Modals state
-  modalChecklistAberto = signal<boolean>(false);
-  modalFormAberto = signal<boolean>(false);
-  emEdicao = signal<boolean>(false);
+  filtroLoja = '';
+  filtroStatus = '';
+  filtroPrioridade = '';
+
+  showModalCriacao = signal(false);
+  showModalDetalhes = signal(false);
   tarefaSelecionada = signal<Tarefa | null>(null);
+  editandoId: number | null = null;
 
-  formTarefa: Partial<Tarefa> = {};
-  responsaveisInput: string = '';
+  responsaveisString = 'Igor Santos, Edyllaine Silva, Ingrid';
+  novoItemDescricao = '';
+  addObsOpen = false;
+  novaObservacaoTexto = '';
+  linkCopiado = false;
+
+  tarefaForm: Partial<Tarefa> = {
+    titulo: '',
+    loja: 'Novo São João',
+    prioridade: 'ALTA',
+    dataGravacao: '2026-09-13',
+    dataEntrega: '2026-09-16',
+    status: 'A_FAZER',
+    municipio: 'São Miguel dos Campos',
+    briefing: '',
+    responsaveis: ['Igor Santos'],
+    checklist: [],
+  };
 
   ngOnInit(): void {
-    this.route.queryParams.subscribe(params => {
-      if (params['status']) {
-        this.filtroStatus = params['status'];
-      }
-      this.carregarTarefas();
-    });
+    this.carregarTarefas();
+    this.carregarMunicipios();
   }
 
   carregarTarefas(): void {
-    this.apiService.getTarefas(this.filtroLoja, this.filtroStatus, this.filtroPrioridade).subscribe({
-      next: (res) => this.tarefas.set(res),
-      error: (err) => console.error('Erro ao carregar tarefas:', err)
+    this.api.getTarefas(this.filtroLoja, this.filtroStatus, this.filtroPrioridade).subscribe((res) => {
+      this.tarefas.set(res);
     });
   }
 
-  abrirChecklistModal(tarefa: Tarefa): void {
-    this.tarefaSelecionada.set(tarefa);
-    this.modalChecklistAberto.set(true);
-  }
-
-  fecharChecklistModal(): void {
-    this.modalChecklistAberto.set(false);
-  }
-
-  toggleChecklistItem(item: ChecklistItem): void {
-    const tarefa = this.tarefaSelecionada();
-    if (!tarefa?.id || !item.id) return;
-
-    this.apiService.toggleChecklistItem(tarefa.id, item.id).subscribe({
-      next: (updatedTarefa) => {
-        this.tarefaSelecionada.set(updatedTarefa);
-        this.carregarTarefas();
-      },
-      error: (err) => console.error('Erro ao alternar checklist item:', err)
+  carregarMunicipios(): void {
+    this.api.getMunicipios().subscribe((res) => {
+      this.municipios.set(res);
     });
   }
 
   abrirModalCriacao(): void {
-    this.emEdicao.set(false);
-    this.formTarefa = {
+    this.editandoId = null;
+    this.tarefaForm = {
+      titulo: 'Caminhada Beto',
+      loja: 'Novo São João',
+      prioridade: 'ALTA',
+      dataGravacao: '2026-09-13',
+      dataEntrega: '2026-09-16',
       status: 'A_FAZER',
-      prioridade: 'MEDIA',
-      dataEntrega: new Date(Date.now() + 5 * 86400000).toISOString().split('T')[0],
+      municipio: 'São Miguel dos Campos',
+      briefing: 'Instruções de gravação, roteiro, formatos esperados...',
+      responsaveis: ['Igor Santos', 'Edyllaine Silva', 'Ingrid'],
       checklist: [
-        { descricao: 'Planejar conteúdo da semana', concluido: false },
-        { descricao: 'Criar roteiro dos vídeos / Reels', concluido: false },
-        { descricao: 'Gravar vídeos e takes no set', concluido: false },
-        { descricao: 'Editar e finalizar Reels', concluido: false },
-        { descricao: 'Produzir artes para feed e Stories', concluido: false },
-        { descricao: 'Revisar textos e identidade visual', concluido: false },
-        { descricao: 'Enviar para aprovação do cliente', concluido: false },
-        { descricao: 'Agendar ou entregar material final', concluido: false }
-      ]
+        { id: 1, descricao: 'Planejar conteúdo da semana', concluido: false, ordem: 1 },
+        { id: 2, descricao: 'Criar roteiro dos vídeos / Reels', concluido: false, ordem: 2 },
+        { id: 3, descricao: 'Gravar vídeos e takes no set', concluido: false, ordem: 3 },
+        { id: 4, descricao: 'Editar e finalizar Reels', concluido: false, ordem: 4 },
+        { id: 5, descricao: 'Produzir artes para feed e Stories', concluido: false, ordem: 5 },
+        { id: 6, descricao: 'Revisar textos e identidade visual', concluido: false, ordem: 6 },
+      ],
     };
-    this.responsaveisInput = 'Lucas Matheus, Edyllaine Silva';
-    this.modalFormAberto.set(true);
+    this.responsaveisString = 'Igor Santos, Edyllaine Silva, Ingrid';
+    this.showModalCriacao.set(true);
   }
 
   abrirModalEdicao(tarefa: Tarefa): void {
-    this.emEdicao.set(true);
-    this.formTarefa = { ...tarefa };
-    this.responsaveisInput = (tarefa.responsaveis || []).join(', ');
-    this.modalFormAberto.set(true);
+    this.editandoId = tarefa.id || null;
+    this.tarefaForm = { ...tarefa };
+    this.responsaveisString = tarefa.responsaveis ? tarefa.responsaveis.join(', ') : '';
+    this.showModalCriacao.set(true);
   }
 
-  fecharModalForm(): void {
-    this.modalFormAberto.set(false);
+  fecharModalCriacao(): void {
+    this.showModalCriacao.set(false);
   }
 
   salvarTarefa(): void {
-    const resps = this.responsaveisInput
-      .split(',')
-      .map(r => r.trim())
-      .filter(r => r.length > 0);
+    if (!this.tarefaForm.titulo) return;
 
-    this.formTarefa.responsaveis = resps;
+    this.tarefaForm.responsaveis = this.responsaveisString
+      ? this.responsaveisString.split(',').map((r) => r.trim()).filter((r) => r.length > 0)
+      : ['Igor Santos'];
 
-    if (this.emEdicao() && this.formTarefa.id) {
-      this.apiService.updateTarefa(this.formTarefa.id, this.formTarefa).subscribe({
-        next: () => {
-          this.fecharModalForm();
-          this.carregarTarefas();
-        },
-        error: (err) => console.error('Erro ao atualizar tarefa:', err)
+    if (this.editandoId) {
+      this.api.updateTarefa(this.editandoId, this.tarefaForm).subscribe(() => {
+        this.showModalCriacao.set(false);
+        this.carregarTarefas();
       });
     } else {
-      this.apiService.createTarefa(this.formTarefa).subscribe({
-        next: () => {
-          this.fecharModalForm();
-          this.carregarTarefas();
-        },
-        error: (err) => console.error('Erro ao criar tarefa:', err)
+      this.api.createTarefa(this.tarefaForm).subscribe(() => {
+        this.showModalCriacao.set(false);
+        this.carregarTarefas();
       });
     }
   }
 
-  concluirTarefa(tarefa: Tarefa): void {
-    if (!tarefa.id) return;
-    this.apiService.updateTarefaStatus(tarefa.id, 'CONCLUIDA').subscribe({
-      next: () => this.carregarTarefas()
+  abrirModalDetalhes(tarefa: Tarefa): void {
+    this.tarefaSelecionada.set(tarefa);
+    this.novoItemDescricao = '';
+    this.addObsOpen = false;
+    this.linkCopiado = false;
+    this.showModalDetalhes.set(true);
+  }
+
+  fecharModalDetalhes(): void {
+    this.showModalDetalhes.set(false);
+  }
+
+  toggleChecklistItem(tarefa: Tarefa, item: ChecklistItem): void {
+    item.concluido = !item.concluido;
+    this.api.updateTarefa(tarefa.id!, { checklist: tarefa.checklist }).subscribe((atualizada) => {
+      this.tarefaSelecionada.set(atualizada);
+      this.carregarTarefas();
     });
+  }
+
+  adicionarItemChecklist(tarefa: Tarefa): void {
+    if (!this.novoItemDescricao.trim()) return;
+    if (!tarefa.checklist) tarefa.checklist = [];
+
+    tarefa.checklist.push({
+      id: Date.now(),
+      descricao: this.novoItemDescricao.trim(),
+      concluido: false,
+      ordem: tarefa.checklist.length + 1,
+    });
+
+    this.novoItemDescricao = '';
+    this.api.updateTarefa(tarefa.id!, { checklist: tarefa.checklist }).subscribe((atualizada) => {
+      this.tarefaSelecionada.set(atualizada);
+      this.carregarTarefas();
+    });
+  }
+
+  removerItemChecklist(tarefa: Tarefa, index: number): void {
+    tarefa.checklist.splice(index, 1);
+    this.api.updateTarefa(tarefa.id!, { checklist: tarefa.checklist }).subscribe((atualizada) => {
+      this.tarefaSelecionada.set(atualizada);
+      this.carregarTarefas();
+    });
+  }
+
+  onUploadArquivosFinais(event: Event, tarefa: Tarefa): void {
+    const input = event.target as HTMLInputElement;
+    if (input.files && input.files.length > 0) {
+      const files = Array.from(input.files);
+      files.forEach((file) => {
+        const reader = new FileReader();
+        const tipo: 'IMAGEM' | 'VIDEO' | 'DOCUMENTO' = file.type.startsWith('video')
+          ? 'VIDEO'
+          : file.type.startsWith('image')
+          ? 'IMAGEM'
+          : 'DOCUMENTO';
+
+        reader.onload = (e: ProgressEvent<FileReader>) => {
+          const urlOuBase64 = e.target?.result as string;
+          this.api.addArquivoFinal(tarefa.id!, {
+            nome: file.name,
+            urlOuBase64,
+            tipo,
+          }).subscribe((atualizada) => {
+            this.tarefaSelecionada.set(atualizada);
+            this.carregarTarefas();
+          });
+        };
+        reader.readAsDataURL(file);
+      });
+      input.value = '';
+    }
+  }
+
+  removerArquivoFinal(tarefa: Tarefa, arquivoId: number): void {
+    this.api.removeArquivoFinal(tarefa.id!, arquivoId).subscribe((atualizada) => {
+      this.tarefaSelecionada.set(atualizada);
+      this.carregarTarefas();
+    });
+  }
+
+  adicionarObservacao(tarefa: Tarefa): void {
+    if (!this.novaObservacaoTexto.trim()) return;
+
+    this.api.addObservacaoTarefa(tarefa.id!, this.novaObservacaoTexto.trim()).subscribe((atualizada) => {
+      this.tarefaSelecionada.set(atualizada);
+      this.novaObservacaoTexto = '';
+      this.addObsOpen = false;
+      this.carregarTarefas();
+    });
+  }
+
+  copiarLinkAprovacao(tarefa: Tarefa): void {
+    const url = `${window.location.origin}/aprovacao/${tarefa.tokenAprovacao || tarefa.id}`;
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(url);
+    }
+    this.linkCopiado = true;
+    setTimeout(() => (this.linkCopiado = false), 2500);
   }
 
   excluirTarefa(tarefa: Tarefa): void {
-    if (!tarefa.id || !confirm(`Tem certeza que deseja excluir a tarefa "${tarefa.titulo}"?`)) return;
-    this.apiService.deleteTarefa(tarefa.id).subscribe({
-      next: () => this.carregarTarefas()
-    });
+    if (confirm(`Deseja realmente excluir a tarefa "${tarefa.titulo}"?`)) {
+      this.api.deleteTarefa(tarefa.id!).subscribe(() => {
+        this.showModalDetalhes.set(false);
+        this.carregarTarefas();
+      });
+    }
   }
 
   isOverdue(tarefa: Tarefa): boolean {
-    if (!tarefa.dataEntrega || tarefa.status === 'CONCLUIDA') return false;
-    const entrega = new Date(tarefa.dataEntrega);
-    const hoje = new Date();
-    hoje.setHours(0, 0, 0, 0);
-    return entrega < hoje;
+    if (tarefa.status === 'CONCLUIDA' || !tarefa.dataEntrega) return false;
+    return new Date(tarefa.dataEntrega) < new Date('2026-09-10');
   }
 
   getStatusBadgeClass(status: string): string {
     switch (status) {
-      case 'A_FAZER': return 'badge-a-fazer';
-      case 'EM_DESENVOLVIMENTO': return 'badge-em-desenvolvimento';
-      case 'EM_REVISAO': return 'badge-em-revisao';
-      case 'NAO_HOMOLOGADA': return 'badge-nao-homologada';
-      case 'ATRASADA': return 'badge-atrasada';
-      case 'CONCLUIDA': return 'badge-concluida';
-      default: return 'badge-a-fazer';
+      case 'CONCLUIDA': return 'badge-success';
+      case 'EM_DESENVOLVIMENTO': return 'badge-info';
+      case 'EM_REVISAO': case 'NAO_HOMOLOGADA': return 'badge-warning';
+      case 'ATRASADA': return 'badge-danger';
+      default: return 'badge-secondary';
+    }
+  }
+
+  getPrioridadeBadgeClass(prioridade: string): string {
+    switch (prioridade) {
+      case 'URGENTE': return 'badge-danger';
+      case 'ALTA': return 'badge-warning';
+      case 'MEDIA': return 'badge-primary';
+      default: return 'badge-secondary';
     }
   }
 
   getStatusLabel(status: string): string {
     switch (status) {
       case 'A_FAZER': return 'A Fazer';
-      case 'EM_DESENVOLVIMENTO': return 'Em Desenvolvimento';
+      case 'EM_DESENVOLVIMENTO': return 'Em Andamento';
       case 'EM_REVISAO': return 'Em Revisão';
       case 'NAO_HOMOLOGADA': return 'Não Homologada';
       case 'ATRASADA': return 'Atrasada';
-      case 'CONCLUIDA': return 'Concluída';
+      case 'CONCLUIDA': return 'Concluído';
       default: return status;
     }
   }
 
-  getPrioridadeBadgeClass(prioridade: string): string {
-    switch (prioridade) {
-      case 'BAIXA': return 'badge-prioridade-baixa';
-      case 'MEDIA': return 'badge-prioridade-media';
-      case 'ALTA': return 'badge-prioridade-alta';
-      case 'URGENTE': return 'badge-prioridade-urgente';
-      default: return '';
-    }
+  getProgressBarClass(percentual: number): string {
+    if (percentual >= 100) return 'bg-success';
+    return '';
   }
 }

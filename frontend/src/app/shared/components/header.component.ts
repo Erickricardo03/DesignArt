@@ -2,6 +2,7 @@ import { Component, Input, Output, EventEmitter, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { AuthService } from '../../core/services/auth.service';
 import { NavigationService } from '../../core/services/navigation.service';
+import { ThemeService } from '../../core/services/theme.service';
 
 @Component({
   selector: 'app-header',
@@ -26,6 +27,18 @@ import { NavigationService } from '../../core/services/navigation.service';
       </div>
 
       <div class="header-right">
+        <!-- Alternador de Tema Claro / Escuro (No Topo da Página) -->
+        <button 
+          class="btn-theme-top-toggle" 
+          (click)="themeService.toggleTheme()" 
+          [title]="themeService.isDarkMode() ? 'Alternar para Modo Claro (White)' : 'Alternar para Modo Escuro (Dark)'"
+        >
+          <div class="theme-icon-badge" [class.dark-active]="themeService.isDarkMode()">
+            <i class="bi" [ngClass]="themeService.isDarkMode() ? 'bi-moon-stars-fill' : 'bi-sun-fill'"></i>
+          </div>
+          <span class="theme-text-lbl">{{ themeService.isDarkMode() ? 'Modo Escuro' : 'Modo Claro' }}</span>
+        </button>
+
         <button class="btn btn-secondary btn-icon-mobile" (click)="refreshAction.emit()" title="Atualizar dados">
           <i class="bi bi-arrow-clockwise"></i>
           <span class="btn-text">Atualizar</span>
@@ -40,7 +53,7 @@ import { NavigationService } from '../../core/services/navigation.service';
   `,
   styles: [`
     .app-header {
-      padding: 1.25rem 2rem;
+      padding: 1.1rem 2rem;
       background: var(--bg-surface);
       border-bottom: 1px solid var(--border-color);
       display: flex;
@@ -118,8 +131,53 @@ import { NavigationService } from '../../core/services/navigation.service';
     .header-right {
       display: flex;
       align-items: center;
-      gap: 0.5rem;
+      gap: 0.75rem;
       flex-shrink: 0;
+    }
+
+    /* Botão Alternador de Tema no Topo */
+    .btn-theme-top-toggle {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.55rem;
+      padding: 0.45rem 0.95rem;
+      border-radius: 9999px;
+      border: 1px solid var(--border-color);
+      background: var(--bg-surface-elevated);
+      color: var(--text-primary);
+      font-size: 0.82rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .btn-theme-top-toggle:hover {
+      background: var(--bg-surface-hover);
+      border-color: var(--color-primary);
+      transform: translateY(-1px);
+    }
+
+    .theme-icon-badge {
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #fbbf24;
+      color: #78350f;
+      font-size: 0.85rem;
+      transition: all 0.25s ease;
+    }
+
+    .theme-icon-badge.dark-active {
+      background: #7c3aed;
+      color: #ffffff;
+    }
+
+    .theme-text-lbl {
+      white-space: nowrap;
     }
 
     @media (max-width: 992px) {
@@ -142,8 +200,11 @@ import { NavigationService } from '../../core/services/navigation.service';
         padding: 0.75rem 0.65rem;
         gap: 0.5rem;
       }
-      .btn-text {
+      .btn-text, .theme-text-lbl {
         display: none;
+      }
+      .btn-theme-top-toggle {
+        padding: 0.45rem 0.55rem;
       }
       .header-right {
         gap: 0.35rem;
@@ -165,4 +226,5 @@ export class HeaderComponent {
 
   authService = inject(AuthService);
   navService = inject(NavigationService);
+  themeService = inject(ThemeService);
 }

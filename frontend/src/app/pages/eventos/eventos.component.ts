@@ -189,8 +189,35 @@ import { Evento, FotoEvento } from '../../core/models';
             </div>
 
             <div class="form-group">
-              <label class="form-label">URL DO BANNER / FLYER DO EVENTO</label>
-              <input type="text" class="form-control" [(ngModel)]="formEvento.bannerUrl" name="bannerUrl" placeholder="https://..." />
+              <label class="form-label">BANNER / FLYER DO EVENTO</label>
+              <div class="custom-file-upload-box" (click)="eventoBannerInput.click()">
+                <input 
+                  type="file" 
+                  #eventoBannerInput 
+                  (change)="onBannerFileSelected($event)" 
+                  accept="image/*,.png,.jpg,.jpeg,.webp,.gif,.bmp,.svg,.ico,.tiff,.heic" 
+                  style="display: none" 
+                />
+                <div *ngIf="!formEvento.bannerUrl" class="upload-placeholder">
+                  <i class="bi bi-image text-primary" style="font-size: 1.8rem;"></i>
+                  <span class="upload-title">Selecionar banner no computador</span>
+                  <small class="upload-sub">Formatos aceitos: PNG, JPG, JPEG, WEBP, etc.</small>
+                </div>
+                <div *ngIf="formEvento.bannerUrl" class="upload-preview-container" (click)="$event.stopPropagation()">
+                  <img [src]="formEvento.bannerUrl" alt="Banner preview" class="preview-banner-rect" />
+                  <div class="preview-meta">
+                    <span class="preview-title"><i class="bi bi-check-circle-fill text-success"></i> Imagem carregada</span>
+                    <div class="preview-actions">
+                      <button type="button" class="btn-action-small btn-trocar" (click)="eventoBannerInput.click()">
+                        <i class="bi bi-arrow-repeat"></i> Trocar
+                      </button>
+                      <button type="button" class="btn-action-small btn-remover" (click)="formEvento.bannerUrl = ''">
+                        <i class="bi bi-trash"></i> Remover
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
 
             <div class="form-group">
@@ -237,8 +264,35 @@ import { Evento, FotoEvento } from '../../core/models';
             </div>
 
             <div class="form-group">
-              <label class="form-label">URL DA FOTO</label>
-              <input type="text" class="form-control" [(ngModel)]="formFoto.urlOuBase64" name="urlOuBase64" required placeholder="https://images.unsplash.com/..." />
+              <label class="form-label">FOTO EM ALTA RESOLUÇÃO</label>
+              <div class="custom-file-upload-box" (click)="fotoItemInput.click()">
+                <input 
+                  type="file" 
+                  #fotoItemInput 
+                  (change)="onFotoFileSelected($event)" 
+                  accept="image/*,.png,.jpg,.jpeg,.webp,.gif,.bmp,.svg,.ico,.tiff,.heic" 
+                  style="display: none" 
+                />
+                <div *ngIf="!formFoto.urlOuBase64" class="upload-placeholder">
+                  <i class="bi bi-cloud-arrow-up text-primary" style="font-size: 1.8rem;"></i>
+                  <span class="upload-title">Selecionar foto no computador</span>
+                  <small class="upload-sub">PNG, JPG, JPEG, WEBP, etc.</small>
+                </div>
+                <div *ngIf="formFoto.urlOuBase64" class="upload-preview-container" (click)="$event.stopPropagation()">
+                  <img [src]="formFoto.urlOuBase64" alt="Foto preview" class="preview-banner-rect" />
+                  <div class="preview-meta">
+                    <span class="preview-title"><i class="bi bi-check-circle-fill text-success"></i> Foto carregada</span>
+                    <div class="preview-actions">
+                      <button type="button" class="btn-action-small btn-trocar" (click)="fotoItemInput.click()">
+                        <i class="bi bi-arrow-repeat"></i> Trocar
+                      </button>
+                      <button type="button" class="btn-action-small btn-remover" (click)="formFoto.urlOuBase64 = ''">
+                        <i class="bi bi-trash"></i> Remover
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
 
             <div class="form-group">
@@ -557,6 +611,30 @@ export class EventosComponent implements OnInit {
 
   fecharModalAddFoto(): void {
     this.modalAddFotoAberto.set(false);
+  }
+
+  onBannerFileSelected(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    if (input.files && input.files[0]) {
+      const file = input.files[0];
+      const reader = new FileReader();
+      reader.onload = (e: ProgressEvent<FileReader>) => {
+        this.formEvento.bannerUrl = e.target?.result as string;
+      };
+      reader.readAsDataURL(file);
+    }
+  }
+
+  onFotoFileSelected(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    if (input.files && input.files[0]) {
+      const file = input.files[0];
+      const reader = new FileReader();
+      reader.onload = (e: ProgressEvent<FileReader>) => {
+        this.formFoto.urlOuBase64 = e.target?.result as string;
+      };
+      reader.readAsDataURL(file);
+    }
   }
 
   salvarFoto(): void {

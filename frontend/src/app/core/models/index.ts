@@ -5,6 +5,8 @@ export interface User {
   email?: string;
   cargo?: string;
   role: string;
+  salario?: number;
+  avatarUrl?: string;
 }
 
 export interface LoginResponse {
@@ -20,6 +22,22 @@ export interface ChecklistItem {
   ordem?: number;
 }
 
+export interface ArquivoFinalEntrega {
+  id?: number;
+  nome: string;
+  urlOuBase64: string;
+  tamanho?: string;
+  tipo?: 'IMAGEM' | 'VIDEO' | 'DOCUMENTO';
+  dataUpload?: string;
+}
+
+export interface ObservacaoTarefa {
+  id?: number;
+  autorNome: string;
+  dataHora: string;
+  texto: string;
+}
+
 export interface Tarefa {
   id?: number;
   titulo: string;
@@ -27,25 +45,41 @@ export interface Tarefa {
   briefing?: string;
   loja: string;
   clienteId?: number;
-  status: 'A_FAZER' | 'EM_DESENVOLVIMENTO' | 'EM_REVISAO' | 'NAO_HOMOLOGADA' | 'ATRASADA' | 'CONCLUIDA';
+  municipio?: string;
+  status: 'A_FAZER' | 'EM_DESENVOLVIMENTO' | 'EM_REVISAO' | 'NAO_HOMOLOGADA' | 'ATRASADA' | 'CONCLUIDA' | 'CANCELADA';
   prioridade: 'BAIXA' | 'MEDIA' | 'ALTA' | 'URGENTE';
   dataGravacao?: string;
   dataEntrega?: string;
   criadorNome?: string;
+  quemAtribuiu?: string;
   responsaveis: string[];
   checklist: ChecklistItem[];
+  arquivosFinais?: ArquivoFinalEntrega[];
+  observacoes?: ObservacaoTarefa[];
+  statusAprovacao?: 'AGUARDANDO_CLIENTE' | 'APROVADO' | 'SOLICITOU_AJUSTE';
+  tokenAprovacao?: string;
   percentualConcluido?: number;
   dataCriacao?: string;
   dataConclusao?: string;
+}
+
+export interface RoteiroCena {
+  ordem: number;
+  descricao: string;
 }
 
 export interface Roteiro {
   id?: number;
   titulo: string;
   loja: string;
+  clienteNome?: string;
+  tarefaId?: number;
+  tarefaTitulo?: string;
   criadorNome?: string;
   dataGravacao?: string;
   conteudoScript: string;
+  cenas?: RoteiroCena[];
+  instrucoesCamera?: string;
   observacoesSet?: string;
   status: 'PENDENTE' | 'EM_GRAVACAO' | 'CONCLUIDO';
   feito: boolean;
@@ -78,6 +112,7 @@ export interface FotoEvento {
 export interface Evento {
   id?: number;
   nome: string;
+  slug?: string;
   localizacao: string;
   dataEvento: string;
   horario: string;
@@ -112,6 +147,93 @@ export interface Despesa {
   formaPagamento?: string;
   status: 'PAGO' | 'PENDENTE';
   observacoes?: string;
+}
+
+export interface Cliente {
+  id?: number;
+  nome: string;
+  categoria?: string;
+  segmento?: string;
+  planoContrato?: string;
+  telefone?: string;
+  email?: string;
+  contato?: string;
+  diaFaturamento?: number;
+  valorMensal?: number;
+  municipio?: string;
+  logoUrl?: string;
+  status: 'ATIVO' | 'INATIVO';
+  dataCadastro?: string;
+}
+
+export interface Fatura {
+  id?: number;
+  clienteId: number;
+  clienteNome: string;
+  mesReferencia: string; // Ex: '09/2026'
+  valor: number;
+  dataVencimento: string; // Ex: '2026-09-17'
+  dataPagamento?: string; // Ex: '2026-09-17'
+  status: 'PAGO' | 'PENDENTE' | 'ATRASADO';
+  observacoes?: string;
+  dataCriacao?: string;
+}
+
+export interface ServicoCatalogo {
+  id?: number;
+  nome: string;
+  preco: number;
+  categoria?: string;
+  descricao: string;
+  status: 'ATIVO' | 'INATIVO';
+}
+
+export interface Colaborador {
+  id?: number;
+  nomeCompleto: string;
+  username: string;
+  email: string;
+  cargo: string;
+  salario: number;
+  role: 'ADMIN' | 'OPERACIONAL' | 'EDITOR' | 'FOTOGRAFO' | 'CLIENTE';
+  ativo: boolean;
+  avatarUrl?: string;
+}
+
+export interface Municipio {
+  id?: number;
+  nome: string;
+  uf: string;
+  ativo: boolean;
+}
+
+export interface FaixaDesconto {
+  id?: number;
+  qtdMinima: number;
+  percentualDesconto: number;
+}
+
+export interface ConfiguracaoLoja {
+  diasRetencao: number;
+  faixasDesconto: FaixaDesconto[];
+}
+
+export interface AtividadeHistorico {
+  id?: number;
+  dataHora: string;
+  colaboradorNome: string;
+  colaboradorEmail: string;
+  acao: string;
+  informacoesAdicionais: string;
+}
+
+export interface SaudeFinanceira {
+  margemOperacional: number;
+  folhaSalarial: number;
+  custosFixos: number;
+  faturasEmAberto: number;
+  totalRecebidoMes: number;
+  totalAReceberMes: number;
 }
 
 export interface Aviso {
@@ -154,6 +276,7 @@ export interface DashboardStats {
   producaoMensal: ProducaoMensal[];
   rankingColaboradores: ColaboradorRanking[];
   ultimasVendas: VendaFoto[];
+  saudeFinanceira?: SaudeFinanceira;
 }
 
 export interface RelatorioMensalItem {

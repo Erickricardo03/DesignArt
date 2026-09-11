@@ -100,13 +100,13 @@ import { RelatorioMensalItem } from '../../core/models';
               <table class="custom-table report-table">
                 <thead>
                   <tr>
-                    <th>Loja / Cliente</th>
-                    <th>Demanda Feita (Título da Tarefa)</th>
-                    <th>Quem Criou a Tarefa</th>
-                    <th>Participantes & Executores (Percipientes)</th>
-                    <th>Prazo</th>
-                    <th>Status</th>
-                    <th>Progresso</th>
+                    <th>LOJA / CLIENTE</th>
+                    <th>DEMANDA FEITA (TÍTULO DA TAREFA)</th>
+                    <th style="color: #ef4444; font-weight: 900;">STATUS</th>
+                    <th>QUEM CRIOU A TAREFA</th>
+                    <th>PARTICIPANTES / EXECUTORES</th>
+                    <th>PRAZO</th>
+                    <th>PROGRESSO</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -116,6 +116,11 @@ import { RelatorioMensalItem } from '../../core/models';
                     </td>
                     <td>
                       <span class="font-bold">{{ item.tituloDemanda }}</span>
+                    </td>
+                    <td>
+                      <span class="badge" [ngClass]="getStatusBadgeClass(item.status)">
+                        {{ getStatusLabel(item.status) }}
+                      </span>
                     </td>
                     <td>
                       <span class="creator-badge">{{ item.criadorNome || 'Lucas Matheus' }}</span>
@@ -130,11 +135,6 @@ import { RelatorioMensalItem } from '../../core/models';
                     </td>
                     <td class="text-muted text-sm">
                       {{ item.dataEntrega | date:'dd/MM/yyyy' }}
-                    </td>
-                    <td>
-                      <span class="badge" [ngClass]="getStatusBadgeClass(item.status)">
-                        {{ getStatusLabel(item.status) }}
-                      </span>
                     </td>
                     <td>
                       <div class="progress-cell">

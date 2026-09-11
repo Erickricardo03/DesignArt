@@ -4,7 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { SidebarComponent } from '../../shared/components/sidebar.component';
 import { HeaderComponent } from '../../shared/components/header.component';
 import { ApiService } from '../../core/services/api.service';
-import { Roteiro } from '../../core/models';
+import { Roteiro, Tarefa, Cliente, RoteiroCena } from '../../core/models';
 
 @Component({
   selector: 'app-roteiros',
@@ -17,7 +17,7 @@ import { Roteiro } from '../../core/models';
       <main class="main-content">
         <app-header 
           title="Roteiros & Gravações" 
-          subtitle="Crie scripts detalhados e compartilhe com a equipe diretamente no set"
+          subtitle="Crie scripts e compartilhe com a equipe no set."
           [showNewTaskButton]="true"
           (newTaskAction)="abrirModalCriacao()"
           (refreshAction)="carregarRoteiros()"
@@ -25,506 +25,793 @@ import { Roteiro } from '../../core/models';
 
         <div class="page-body">
           <!-- Filtro de Busca -->
-          <div class="card mb-4">
-            <div class="search-bar-row">
-              <div class="input-with-icon flex-1">
-                <input 
-                  type="text" 
-                  class="form-control" 
-                  placeholder="Filtrar por loja ou cliente (Ex: JM MODA FITNESS)..." 
-                  [(ngModel)]="filtroLoja" 
-                  (input)="carregarRoteiros()"
-                />
-              </div>
-              <button class="btn btn-primary" (click)="abrirModalCriacao()">
-                <i class="bi bi-plus-lg"></i>
-                <span>Novo Roteiro</span>
-              </button>
+          <div class="card search-filter-bar">
+            <div class="search-wrap-full">
+              <i class="bi bi-search"></i>
+              <input 
+                type="text" 
+                placeholder="Filtrar por título, cliente ou tarefa associada..." 
+                [(ngModel)]="filtroLoja" 
+                (input)="filtrar()"
+              />
             </div>
+            <button class="btn-create-script" (click)="abrirModalCriacao()">
+              <i class="bi bi-plus-lg"></i> NOVO ROTEIRO
+            </button>
           </div>
 
-          <!-- Grid de Roteiros (Padrão Página 2 do PDF) -->
+          <!-- Grid de Roteiros (Exatamente como em 16756.jpg) -->
           <div class="scripts-grid">
             <div 
-              class="card script-card" 
-              *ngFor="let roteiro of roteiros()"
-              [class.script-card-done]="roteiro.feito"
+              class="script-dark-card" 
+              *ngFor="let r of roteirosFiltrados()"
             >
               <div class="script-card-header">
-                <div class="store-info">
-                  <span class="client-name">{{ roteiro.loja }}</span>
-                  <h3 class="script-title">{{ roteiro.titulo }}</h3>
-                  <span class="creator-tag">CRIADOR: {{ roteiro.criadorNome || 'LUCAS MATHEUS' }}</span>
-                </div>
-
-                <!-- Sinalização de Feito / Concluído (Página 2 do PDF) -->
-                <button 
-                  class="btn-status-toggle" 
-                  [class.btn-status-done]="roteiro.feito"
-                  (click)="toggleFeito(roteiro)"
-                  title="Clique para alternar o status de gravação"
-                >
-                  <i class="bi" [ngClass]="roteiro.feito ? 'bi-check-circle-fill' : 'bi-circle'"></i>
-                  <span>{{ roteiro.feito ? 'GRAVAÇÃO CONCLUÍDA' : 'MARCAR COMO FEITO' }}</span>
-                </button>
-              </div>
-
-              <div class="script-preview" *ngIf="roteiro.conteudoScript">
-                <p>{{ roteiro.conteudoScript }}</p>
-              </div>
-
-              <div class="script-card-footer">
-                <div class="footer-left">
-                  <span class="record-date" *ngIf="roteiro.dataGravacao">
-                    <i class="bi bi-calendar-check"></i> {{ roteiro.dataGravacao | date:'dd/MM/yyyy' }}
+                <div class="script-title-area">
+                  <span class="script-client-name">{{ r.clienteNome || r.loja }}</span>
+                  <h2 class="script-heading">{{ r.titulo }}</h2>
+                  <span class="script-creator">CRIADOR: {{ r.criadorNome || 'LUCAS MATHEUS' }}</span>
+                  <span class="linked-task-pill" *ngIf="r.tarefaTitulo">
+                    <i class="bi bi-link-45deg"></i> Tarefa: {{ r.tarefaTitulo }}
                   </span>
                 </div>
 
-                <div class="footer-actions">
-                  <button class="btn btn-primary btn-sm" (click)="abrirModalLeitura(roteiro)">
-                    <i class="bi bi-eye"></i>
-                    <span>ABRIR ROTEIRO</span>
+                <!-- Botão Gravação Concluída (16756.jpg) -->
+                <button 
+                  class="btn-status-gravacao" 
+                  [class.concluida]="r.status === 'CONCLUIDO' || r.feito"
+                  (click)="toggleGravacao(r)"
+                >
+                  <i class="bi" [ngClass]="(r.status === 'CONCLUIDO' || r.feito) ? 'bi-check-circle-fill' : 'bi-circle'"></i>
+                  <span>{{ (r.status === 'CONCLUIDO' || r.feito) ? 'GRAVAÇÃO CONCLUÍDA' : 'PENDENTE' }}</span>
+                </button>
+              </div>
+
+              <!-- Cenas do Roteiro (16756.jpg) -->
+              <div class="script-scenes-box">
+                <div class="scene-line" *ngFor="let c of r.cenas">
+                  <span class="scene-text">{{ c.descricao }}</span>
+                </div>
+                <div class="scene-line" *ngIf="!r.cenas || r.cenas.length === 0">
+                  <span class="scene-text">{{ r.conteudoScript || 'Sem roteiro detalhado cadastrado.' }}</span>
+                </div>
+              </div>
+
+              <div class="script-camera-note" *ngIf="r.instrucoesCamera">
+                <i class="bi bi-camera-reels-fill text-purple"></i>
+                <span><strong>Câmera:</strong> {{ r.instrucoesCamera }}</span>
+              </div>
+
+              <!-- Footer (16756.jpg) -->
+              <div class="script-card-footer">
+                <span class="script-date">
+                  <i class="bi bi-calendar3"></i> {{ (r.dataGravacao || '2026-08-20') | date:'dd/MM/yyyy' }}
+                </span>
+
+                <div class="footer-btn-group">
+                  <button class="btn-abrir-roteiro" (click)="abrirModalLeitura(r)">
+                    <i class="bi bi-eye"></i> ABRIR ROTEIRO
                   </button>
-                  <button class="btn btn-secondary btn-sm" (click)="abrirModalEdicao(roteiro)">
-                    <i class="bi bi-pencil"></i>
-                    <span>EDITAR</span>
+                  <button class="btn-editar-roteiro" (click)="abrirModalEdicao(r)">
+                    <i class="bi bi-pencil"></i> EDITAR
                   </button>
-                  <button class="btn btn-ghost btn-sm text-danger" (click)="excluirRoteiro(roteiro)" title="Excluir">
+                  <button class="btn-excluir-roteiro" (click)="excluirRoteiro(r)" title="Excluir">
                     <i class="bi bi-trash"></i>
                   </button>
                 </div>
               </div>
-            </div>
-
-            <div *ngIf="roteiros().length === 0" class="empty-state-card card">
-              <i class="bi bi-camera-reels text-muted" style="font-size: 3rem;"></i>
-              <p class="text-muted mt-2">Nenhum roteiro cadastrado no momento.</p>
             </div>
           </div>
         </div>
       </main>
     </div>
 
-    <!-- MODAL 1: MODO LEITURA NO SET ("ABRIR ROTEIRO") -->
-    <div class="modal-backdrop" *ngIf="modalLeituraAberto()" (click)="fecharModalLeitura()">
-      <div class="modal-content modal-lg script-view-modal" (click)="$event.stopPropagation()">
-        <div class="modal-header">
+    <!-- MODAL CRIAR / EDITAR ROTEIRO (Exatamente como em 16762.jpg) -->
+    <div class="modal-backdrop" *ngIf="showModalCriacao()">
+      <div class="modal-card modal-dark modal-lg animate-fade-in">
+        <div class="modal-header modal-header-dark">
           <div>
-            <span class="badge" [ngClass]="roteiroSelecionado()?.feito ? 'badge-concluida' : 'badge-em-desenvolvimento'">
-              {{ roteiroSelecionado()?.feito ? 'GRAVADO & CONCLUÍDO' : 'EM GRAVAÇÃO NO SET' }}
-            </span>
-            <h2 class="mt-2 mb-0">{{ roteiroSelecionado()?.titulo }}</h2>
-            <span class="store-badge-sub">{{ roteiroSelecionado()?.loja }}</span>
+            <h2 class="modal-title-white">CRIAR NOVO ROTEIRO DE GRAVAÇÃO</h2>
+            <span class="modal-sub-white">Preencha as informações e redija o roteiro em tela cheia.</span>
           </div>
-          <button class="btn-ghost btn-icon" (click)="fecharModalLeitura()">
-            <i class="bi bi-x-lg"></i>
-          </button>
+          <button class="btn-close-hdr" (click)="fecharModalCriacao()">VOLTAR PARA A LISTA</button>
         </div>
 
-        <div class="modal-body script-body-content">
-          <div class="set-meta-box">
-            <div>
-              <span class="meta-lbl">CRIADOR / DIRETOR:</span>
-              <strong>{{ roteiroSelecionado()?.criadorNome || 'LUCAS MATHEUS' }}</strong>
+        <div class="modal-body modal-body-dark">
+          <!-- TÍTULO DO ROTEIRO & CLIENTE VINCULADO (16762.jpg) -->
+          <div class="form-grid-2">
+            <div class="form-group">
+              <label class="form-lbl-dark">TÍTULO DO ROTEIRO *</label>
+              <input type="text" [(ngModel)]="roteiroForm.titulo" class="form-input-dark" placeholder="Ex: Lançamento Coleção Primavera" />
             </div>
-            <div>
-              <span class="meta-lbl">DATA PREVISTA:</span>
-              <strong>{{ roteiroSelecionado()?.dataGravacao | date:'dd/MM/yyyy' }}</strong>
-            </div>
-          </div>
-
-          <div class="script-text-container">
-            <h4><i class="bi bi-camera-reels-fill text-primary"></i> SCRIPT / ROTEIRO DE GRAVAÇÃO</h4>
-            <div class="script-rich-text">
-              {{ roteiroSelecionado()?.conteudoScript }}
+            <div class="form-group">
+              <label class="form-lbl-dark">CLIENTE VINCULADO *</label>
+              <select [(ngModel)]="roteiroForm.clienteNome" (change)="onClienteChange()" class="form-input-dark">
+                <option *ngFor="let c of clientes()" [value]="c.nome">{{ c.nome }}</option>
+              </select>
             </div>
           </div>
 
-          <div class="set-tech-box mt-3" *ngIf="roteiroSelecionado()?.observacoesSet">
-            <h5><i class="bi bi-gear-fill text-warning"></i> OBSERVAÇÕES TÉCNICAS DO SET & ILUMINAÇÃO</h5>
-            <p>{{ roteiroSelecionado()?.observacoesSet }}</p>
+          <!-- TAREFA ASSOCIADA & DIREÇÃO DE CÂMERA (16762.jpg) -->
+          <div class="form-grid-2">
+            <div class="form-group">
+              <label class="form-lbl-dark highlight-purple">TAREFA ASSOCIADA (OPCIONAL)</label>
+              <select [(ngModel)]="roteiroForm.tarefaId" class="form-input-dark">
+                <option [ngValue]="undefined">Selecione a Tarefa</option>
+                <option *ngFor="let t of tarefas()" [ngValue]="t.id">{{ t.titulo }} ({{ t.loja }})</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-lbl-dark">DIREÇÃO / INSTRUÇÕES DE CÂMERA</label>
+              <input type="text" [(ngModel)]="roteiroForm.instrucoesCamera" class="form-input-dark" placeholder="Ex: Lente 50mm, luz suave quente..." />
+            </div>
           </div>
-        </div>
 
-        <div class="modal-footer">
-          <button 
-            class="btn" 
-            [ngClass]="roteiroSelecionado()?.feito ? 'btn-secondary' : 'btn-success'"
-            (click)="toggleFeitoModal()"
-          >
-            <i class="bi bi-check2-circle"></i>
-            <span>{{ roteiroSelecionado()?.feito ? 'Desmarcar Concluído' : 'Sinalizar como Gravado / Concluído' }}</span>
-          </button>
-          <button class="btn btn-secondary" (click)="fecharModalLeitura()">
-            Fechar
-          </button>
+          <!-- DATA DA GRAVAÇÃO & STATUS -->
+          <div class="form-grid-2">
+            <div class="form-group">
+              <label class="form-lbl-dark">DATA DA GRAVAÇÃO</label>
+              <input type="date" [(ngModel)]="roteiroForm.dataGravacao" class="form-input-dark" />
+            </div>
+            <div class="form-group">
+              <label class="form-lbl-dark">STATUS</label>
+              <select [(ngModel)]="roteiroForm.status" class="form-input-dark">
+                <option value="PENDENTE">PENDENTE</option>
+                <option value="EM_GRAVACAO">EM GRAVAÇÃO</option>
+                <option value="CONCLUIDO">CONCLUÍDO</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- CENAS DO ROTEIRO -->
+          <div class="form-group">
+            <div class="flex-between mb-2">
+              <label class="form-lbl-dark">CENAS DETALHADAS DO SCRIPT</label>
+              <button class="btn-add-scene-sm" (click)="adicionarCenaForm()">
+                <i class="bi bi-plus"></i> Adicionar Cena
+              </button>
+            </div>
+
+            <div class="scenes-inputs-stack">
+              <div class="scene-input-row" *ngFor="let c of cenasForm; let idx = index">
+                <span class="scene-index-badge">CENA {{ idx + 1 }}</span>
+                <input type="text" [(ngModel)]="c.descricao" class="form-input-dark flex-1" placeholder="Ação, diálogo e enquadramento..." />
+                <button class="btn-remove-scene" (click)="removerCenaForm(idx)"><i class="bi bi-x"></i></button>
+              </div>
+            </div>
+          </div>
+
+          <div class="modal-actions-right">
+            <button class="btn-cancel-dark" (click)="fecharModalCriacao()">Cancelar</button>
+            <button class="btn-save-dark" (click)="salvarRoteiro()">Salvar Roteiro</button>
+          </div>
         </div>
       </div>
     </div>
 
-    <!-- MODAL 2: CRIAÇÃO / EDIÇÃO DE ROTEIRO -->
-    <div class="modal-backdrop" *ngIf="modalFormAberto()" (click)="fecharModalForm()">
-      <div class="modal-content modal-lg" (click)="$event.stopPropagation()">
-        <div class="modal-header">
-          <h3>{{ emEdicao() ? 'Editar Roteiro' : 'Novo Roteiro de Gravação' }}</h3>
-          <button class="btn-ghost btn-icon" (click)="fecharModalForm()">
-            <i class="bi bi-x-lg"></i>
-          </button>
+    <!-- MODAL MODO LEITURA / SET NO CELULAR -->
+    <div class="modal-backdrop" *ngIf="showModalLeitura()">
+      <div class="modal-card modal-dark modal-lg animate-fade-in" *ngIf="roteiroSelecionado() as r">
+        <div class="modal-header modal-header-dark">
+          <div>
+            <span class="modal-sub-white">{{ r.clienteNome || r.loja }}</span>
+            <h2 class="modal-title-white">{{ r.titulo }}</h2>
+          </div>
+          <button class="btn-close-hdr" (click)="showModalLeitura.set(false)">FECHAR</button>
         </div>
 
-        <form (ngSubmit)="salvarRoteiro()">
-          <div class="modal-body">
-            <div class="form-group">
-              <label class="form-label">TÍTULO DO ROTEIRO</label>
-              <input type="text" class="form-control" [(ngModel)]="formRoteiro.titulo" name="titulo" required placeholder="Ex: NOVO ESPAÇO FITNESS | JM MODA FITNESS" />
-            </div>
-
-            <div class="form-row-2">
-              <div class="form-group">
-                <label class="form-label">LOJA / CLIENTE</label>
-                <input type="text" class="form-control" [(ngModel)]="formRoteiro.loja" name="loja" required placeholder="Ex: JM MODA FITNESS" />
-              </div>
-
-              <div class="form-group">
-                <label class="form-label">CRIADOR / ROTEIRISTA</label>
-                <input type="text" class="form-control" [(ngModel)]="formRoteiro.criadorNome" name="criadorNome" placeholder="Ex: LUCAS MATHEUS" />
-              </div>
-            </div>
-
-            <div class="form-group">
-              <label class="form-label">DATA DA GRAVAÇÃO NO SET</label>
-              <input type="date" class="form-control" [(ngModel)]="formRoteiro.dataGravacao" name="dataGravacao" />
-            </div>
-
-            <div class="form-group">
-              <label class="form-label">CONTEÚDO DO SCRIPT (CENAS, FALAS E TAKES)</label>
-              <textarea class="form-control" rows="7" [(ngModel)]="formRoteiro.conteudoScript" name="conteudoScript" required placeholder="CENA 1: ...&#10;CENA 2: ...&#10;LOCUÇÃO: ..."></textarea>
-            </div>
-
-            <div class="form-group">
-              <label class="form-label">OBSERVAÇÕES DO SET (LENTES, ILUMINAÇÃO, ÁUDIO)</label>
-              <textarea class="form-control" rows="3" [(ngModel)]="formRoteiro.observacoesSet" name="observacoesSet" placeholder="Ex: Lente 24-70mm f/2.8, iluminação 5600K com bastões RGB azuis."></textarea>
+        <div class="modal-body modal-body-dark">
+          <div class="reader-mode-box">
+            <div class="reader-scene" *ngFor="let c of r.cenas">
+              <p class="reader-scene-text">{{ c.descricao }}</p>
             </div>
           </div>
 
-          <div class="modal-footer">
-            <button type="button" class="btn btn-secondary" (click)="fecharModalForm()">Cancelar</button>
-            <button type="submit" class="btn btn-primary">Salvar Roteiro</button>
+          <div class="reader-camera-bar" *ngIf="r.instrucoesCamera">
+            <strong>Instruções de Câmera & Luz:</strong>
+            <p>{{ r.instrucoesCamera }}</p>
           </div>
-        </form>
+
+          <div class="modal-actions-right">
+            <button class="btn-status-gravacao concluida" (click)="toggleGravacao(r)">
+              <i class="bi" [ngClass]="(r.status === 'CONCLUIDO' || r.feito) ? 'bi-check-circle-fill' : 'bi-circle'"></i>
+              <span>{{ (r.status === 'CONCLUIDO' || r.feito) ? 'GRAVAÇÃO CONCLUÍDA' : 'MARCAR CONCLUÍDO' }}</span>
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   `,
   styles: [`
-    .search-bar-row {
+    .app-container {
       display: flex;
-      gap: 1rem;
-      align-items: center;
-      width: 100%;
-      max-width: 100%;
-      min-width: 0;
-      flex-wrap: wrap;
+      min-height: 100vh;
+      background: var(--bg-primary);
     }
-
-    .flex-1 {
+    .main-content {
       flex: 1;
-      min-width: 0;
-    }
-
-    .scripts-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-      gap: 1.25rem;
-      width: 100%;
-      max-width: 100%;
-      min-width: 0;
-    }
-
-    .script-card {
       display: flex;
       flex-direction: column;
-      justify-content: space-between;
-      border: 1px solid var(--border-color);
-      transition: all 0.2s ease;
       min-width: 0;
-      max-width: 100%;
-      box-sizing: border-box;
-      overflow: hidden;
+    }
+    .page-body {
+      padding: 1.5rem 2rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
     }
 
-    .script-card:hover {
-      border-color: var(--color-primary);
-      box-shadow: var(--shadow-md);
+    .search-filter-bar {
+      background: var(--card-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 0.85rem 1.25rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 1rem;
+    }
+    .search-wrap-full {
+      display: flex;
+      align-items: center;
+      gap: 0.65rem;
+      flex: 1;
+      color: var(--text-secondary);
+    }
+    .search-wrap-full input {
+      border: none;
+      background: transparent;
+      outline: none;
+      width: 100%;
+      color: var(--text-primary);
+      font-size: 0.88rem;
+    }
+    .btn-create-script {
+      background: #1e293b;
+      color: #fff;
+      border: none;
+      padding: 0.65rem 1.25rem;
+      border-radius: 8px;
+      font-weight: 800;
+      font-size: 0.82rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 0.45rem;
     }
 
-    .script-card-done {
-      border-left: 4px solid var(--color-success) !important;
+    /* Cards Escuros Idênticos à Imagem 16756.jpg */
+    .scripts-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+      gap: 1.5rem;
     }
-
+    .script-dark-card {
+      background: #151c28;
+      border: 1px solid #2d3748;
+      border-radius: 14px;
+      padding: 1.5rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1.2rem;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+      position: relative;
+    }
     .script-card-header {
       display: flex;
-      align-items: flex-start;
       justify-content: space-between;
+      align-items: flex-start;
       gap: 1rem;
-      margin-bottom: 1rem;
     }
-
-    .client-name {
-      font-size: 0.8rem;
+    .script-title-area {
+      flex: 1;
+    }
+    .script-client-name {
+      font-size: 0.75rem;
       font-weight: 800;
-      color: var(--color-primary);
-      text-transform: uppercase;
+      color: #60a5fa;
       letter-spacing: 0.05em;
+      text-transform: uppercase;
+      display: block;
+      margin-bottom: 0.2rem;
+    }
+    .script-heading {
+      font-size: 1.05rem;
+      font-weight: 800;
+      color: #ffffff;
+      margin: 0 0 0.35rem 0;
+      line-height: 1.35;
+    }
+    .script-creator {
+      font-size: 0.7rem;
+      font-weight: 700;
+      color: #94a3b8;
       display: block;
     }
-
-    .script-title {
-      font-size: 1.15rem;
-      margin: 0.2rem 0;
-      line-height: 1.3;
-    }
-
-    .creator-tag {
-      font-size: 0.725rem;
+    .linked-task-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.3rem;
+      font-size: 0.68rem;
       font-weight: 700;
-      color: var(--text-muted);
-      text-transform: uppercase;
+      color: #c084fc;
+      background: rgba(192, 132, 252, 0.1);
+      padding: 0.2rem 0.5rem;
+      border-radius: 4px;
+      margin-top: 0.4rem;
     }
 
-    .btn-status-toggle {
+    /* Botão Gravação Concluída (16756.jpg) */
+    .btn-status-gravacao {
+      background: rgba(16, 185, 129, 0.1);
+      border: 1px solid #10b981;
+      color: #34d399;
+      padding: 0.45rem 0.85rem;
+      border-radius: 20px;
+      font-size: 0.72rem;
+      font-weight: 800;
+      cursor: pointer;
       display: inline-flex;
       align-items: center;
       gap: 0.4rem;
-      padding: 0.4rem 0.75rem;
-      border-radius: var(--radius-full);
-      border: 1px solid var(--border-subtle);
-      background: var(--bg-surface-elevated);
-      color: var(--text-secondary);
-      font-size: 0.7rem;
-      font-weight: 800;
-      letter-spacing: 0.04em;
-      cursor: pointer;
-      transition: all 0.2s ease;
       white-space: nowrap;
+      transition: all 0.2s;
+    }
+    .btn-status-gravacao.concluida {
+      background: #064e3b;
+      color: #34d399;
+      border-color: #059669;
     }
 
-    .btn-status-toggle:hover {
-      background: var(--bg-surface-hover);
+    /* Caixa de Cenas (16756.jpg) */
+    .script-scenes-box {
+      background: #1e2736;
+      border: 1px solid #2d3748;
+      border-radius: 10px;
+      padding: 1.1rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.85rem;
     }
-
-    .btn-status-done {
-      background: rgba(16, 185, 129, 0.15);
-      color: #10B981;
-      border-color: #10B981;
+    .scene-line {
+      line-height: 1.45;
     }
-
-    .script-preview {
-      background: var(--bg-surface-elevated);
-      padding: 1rem;
-      border-radius: var(--radius-md);
-      margin-bottom: 1.25rem;
-      max-height: 120px;
-      overflow: hidden;
-      position: relative;
+    .scene-text {
+      font-size: 0.84rem;
+      color: #cbd5e1;
     }
-
-    .script-preview p {
-      font-size: 0.85rem;
-      color: var(--text-secondary);
-      line-height: 1.6;
-      margin: 0;
-      white-space: pre-line;
+    .script-camera-note {
+      font-size: 0.78rem;
+      color: #94a3b8;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      background: rgba(124, 58, 237, 0.08);
+      padding: 0.5rem 0.75rem;
+      border-radius: 6px;
     }
+    .text-purple { color: #a78bfa; }
 
+    /* Footer (16756.jpg) */
     .script-card-footer {
       display: flex;
-      align-items: center;
       justify-content: space-between;
-      padding-top: 1rem;
-      border-top: 1px solid var(--border-color);
+      align-items: center;
+      margin-top: auto;
+      padding-top: 0.85rem;
+      border-top: 1px solid #2d3748;
+    }
+    .script-date {
+      font-size: 0.78rem;
+      color: #94a3b8;
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+    .footer-btn-group {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+    }
+    .btn-abrir-roteiro {
+      background: linear-gradient(135deg, #7c3aed, #9333ea);
+      color: #ffffff;
+      border: none;
+      padding: 0.55rem 1.1rem;
+      border-radius: 8px;
+      font-size: 0.78rem;
+      font-weight: 800;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+      box-shadow: 0 4px 12px rgba(124, 58, 237, 0.4);
+    }
+    .btn-editar-roteiro {
+      background: #1e293b;
+      border: 1px solid #475569;
+      color: #ffffff;
+      padding: 0.55rem 0.95rem;
+      border-radius: 8px;
+      font-size: 0.78rem;
+      font-weight: 800;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+    }
+    .btn-excluir-roteiro {
+      background: none;
+      border: none;
+      color: #f87171;
+      font-size: 1rem;
+      cursor: pointer;
+      padding: 0.3rem;
     }
 
-    .record-date {
-      font-size: 0.75rem;
-      color: var(--text-muted);
+    /* Modais (16762.jpg) */
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.75);
+      backdrop-filter: blur(8px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1050;
+      padding: 1rem;
+    }
+    .modal-dark {
+      background: var(--bg-surface) !important;
+      color: var(--text-primary) !important;
+      border: 1.5px solid var(--border-color);
+      border-radius: 16px;
+      width: 100%;
+      max-width: 720px;
+      max-height: 90vh;
+      overflow-y: auto;
+      box-shadow: 0 25px 60px -15px rgba(0,0,0,0.5);
+    }
+    .modal-header-dark {
+      padding: 1.25rem 1.75rem;
+      border-bottom: 1.5px solid var(--border-color);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: var(--bg-surface);
+    }
+    .modal-title-white {
+      font-size: 1.35rem;
+      font-weight: 800;
+      color: var(--text-primary);
+      margin: 0;
+    }
+    .modal-sub-white {
+      font-size: 0.8rem;
+      color: var(--text-secondary);
       font-weight: 600;
     }
-
-    .footer-actions {
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-    }
-
-    /* Modal Read View */
-    .set-meta-box {
-      display: flex;
-      gap: 2rem;
-      padding: 1rem;
-      background: var(--bg-surface-elevated);
-      border-radius: var(--radius-md);
-      margin-bottom: 1.5rem;
-    }
-
-    .meta-lbl {
-      font-size: 0.7rem;
-      color: var(--text-muted);
-      display: block;
-    }
-
-    .script-text-container {
+    .btn-close-hdr {
       background: var(--bg-surface-elevated);
       border: 1px solid var(--border-color);
-      border-radius: var(--radius-md);
-      padding: 1.5rem;
+      color: var(--text-primary);
+      border-radius: 6px;
+      padding: 0.4rem 0.85rem;
+      font-weight: 800;
+      font-size: 0.75rem;
+      cursor: pointer;
+      transition: all 0.2s;
     }
-
-    .script-text-container h4 {
-      font-size: 1rem;
-      margin-bottom: 1rem;
+    .btn-close-hdr:hover {
+      background: var(--bg-surface-hover);
+      color: var(--primary);
+    }
+    .modal-body-dark {
+      padding: 1.75rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1.25rem;
+      background: var(--bg-surface);
+    }
+    .form-grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+    }
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 0.45rem;
+    }
+    .form-lbl-dark {
+      font-size: 0.8rem;
+      font-weight: 800;
+      color: var(--text-primary);
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+    .highlight-purple {
+      color: var(--primary);
+    }
+    .form-input-dark {
+      width: 100%;
+      padding: 0.75rem 0.95rem;
+      border: 1.5px solid var(--border-color);
+      border-radius: 8px;
+      background: var(--bg-surface);
+      color: var(--text-primary);
+      font-size: 0.9rem;
+      font-weight: 600;
+      outline: none;
+      transition: all 0.2s ease;
+    }
+    .form-input-dark:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px var(--color-primary-light);
+    }
+    .flex-between {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .mb-2 { margin-bottom: 0.5rem; }
+    .btn-add-scene-sm {
+      background: var(--color-primary-light);
+      border: 1px solid var(--primary);
+      color: var(--primary);
+      padding: 0.25rem 0.65rem;
+      border-radius: 6px;
+      font-size: 0.75rem;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .scenes-inputs-stack {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+    .scene-input-row {
       display: flex;
       align-items: center;
       gap: 0.5rem;
     }
-
-    .script-rich-text {
-      font-size: 0.95rem;
-      line-height: 1.8;
-      white-space: pre-line;
+    .scene-index-badge {
+      font-size: 0.75rem;
+      font-weight: 800;
+      background: var(--bg-surface-elevated);
       color: var(--text-primary);
+      border: 1px solid var(--border-color);
+      padding: 0.5rem 0.75rem;
+      border-radius: 6px;
+      white-space: nowrap;
+    }
+    .btn-remove-scene {
+      background: none;
+      border: none;
+      color: #ef4444;
+      font-size: 1.1rem;
+      cursor: pointer;
     }
 
-    .set-tech-box {
-      background: rgba(245, 158, 11, 0.08);
-      border: 1px solid rgba(245, 158, 11, 0.3);
-      padding: 1rem 1.25rem;
-      border-radius: var(--radius-md);
+    .modal-actions-right {
+      display: flex;
+      justify-content: flex-end;
+      gap: 0.75rem;
+      margin-top: 0.75rem;
+    }
+    .btn-cancel-dark {
+      background: var(--bg-surface-elevated);
+      border: 1.5px solid var(--border-color);
+      color: var(--text-primary);
+      padding: 0.7rem 1.35rem;
+      border-radius: 8px;
+      font-weight: 700;
+      font-size: 0.88rem;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .btn-cancel-dark:hover {
+      background: var(--bg-surface-hover);
+      border-color: var(--border-subtle);
+    }
+    .btn-save-dark {
+      background: var(--color-primary-gradient);
+      color: #fff;
+      border: none;
+      padding: 0.7rem 1.5rem;
+      border-radius: 8px;
+      font-weight: 800;
+      font-size: 0.88rem;
+      cursor: pointer;
+      box-shadow: 0 4px 14px rgba(124, 58, 237, 0.35);
+      transition: all 0.2s;
+    }
+    .btn-save-dark:hover {
+      box-shadow: 0 6px 20px rgba(124, 58, 237, 0.5);
+      filter: brightness(1.06);
+      transform: translateY(-1px);
     }
 
-    .set-tech-box h5 {
-      font-size: 0.85rem;
-      margin-bottom: 0.4rem;
-      color: var(--color-warning);
+    /* Leitor */
+    .reader-mode-box {
+      background: var(--bg-surface-elevated);
+      border: 1.5px solid var(--border-color);
+      border-radius: 12px;
+      padding: 1.5rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1.25rem;
     }
-
-    .set-tech-box p {
-      font-size: 0.85rem;
+    .reader-scene-text {
+      font-size: 1.05rem;
+      line-height: 1.6;
+      color: var(--text-primary);
+      font-weight: 600;
       margin: 0;
-      color: var(--text-primary);
     }
-
-    .empty-state-card {
-      grid-column: 1 / -1;
-      text-align: center;
-      padding: 4rem 1rem;
-    }
-
-    @media (max-width: 768px) {
-      .scripts-grid { grid-template-columns: 1fr; }
-      .script-card-header { flex-direction: column; gap: 0.75rem; }
-      .script-card-footer { flex-direction: column; gap: 0.75rem; align-items: stretch; }
-      .footer-actions { width: 100%; justify-content: space-between; }
-      .footer-actions .btn { flex: 1; }
-      .set-meta-box { flex-direction: column; gap: 0.75rem; }
+    .reader-camera-bar {
+      background: var(--bg-surface);
+      border-left: 4px solid var(--primary);
+      border: 1px solid var(--border-color);
+      border-left-width: 4px;
+      border-radius: 8px;
+      padding: 0.85rem 1rem;
+      font-size: 0.88rem;
+      color: var(--text-secondary);
+      font-weight: 600;
     }
   `]
 })
 export class RoteirosComponent implements OnInit {
-  private apiService = inject(ApiService);
+  private api = inject(ApiService);
 
   roteiros = signal<Roteiro[]>([]);
-  filtroLoja: string = '';
+  roteirosFiltrados = signal<Roteiro[]>([]);
+  tarefas = signal<Tarefa[]>([]);
+  clientes = signal<Cliente[]>([]);
+  filtroLoja = '';
 
-  modalLeituraAberto = signal<boolean>(false);
-  modalFormAberto = signal<boolean>(false);
-  emEdicao = signal<boolean>(false);
+  showModalCriacao = signal(false);
+  showModalLeitura = signal(false);
   roteiroSelecionado = signal<Roteiro | null>(null);
+  editandoId: number | null = null;
 
-  formRoteiro: Partial<Roteiro> = {};
+  cenasForm: RoteiroCena[] = [];
+
+  roteiroForm: Partial<Roteiro> = {
+    titulo: '',
+    loja: 'ATELIÊ DA YSA',
+    clienteNome: 'ATELIÊ DA YSA',
+    instrucoesCamera: 'Lente 50mm, luz suave quente...',
+    dataGravacao: '2026-09-20',
+    status: 'PENDENTE',
+  };
 
   ngOnInit(): void {
     this.carregarRoteiros();
+    this.carregarAuxiliares();
   }
 
   carregarRoteiros(): void {
-    this.apiService.getRoteiros(this.filtroLoja).subscribe({
-      next: (res) => this.roteiros.set(res),
-      error: (err) => console.error('Erro ao carregar roteiros:', err)
+    this.api.getRoteiros().subscribe((res) => {
+      this.roteiros.set(res);
+      this.filtrar();
     });
   }
 
-  toggleFeito(roteiro: Roteiro): void {
-    if (!roteiro.id) return;
-    this.apiService.toggleRoteiroConcluido(roteiro.id).subscribe({
-      next: (updated) => {
-        this.carregarRoteiros();
-      }
-    });
+  carregarAuxiliares(): void {
+    this.api.getTarefas().subscribe((t) => this.tarefas.set(t));
+    this.api.getClientes().subscribe((c) => this.clientes.set(c));
   }
 
-  toggleFeitoModal(): void {
-    const sel = this.roteiroSelecionado();
-    if (!sel?.id) return;
-    this.apiService.toggleRoteiroConcluido(sel.id).subscribe({
-      next: (updated) => {
-        this.roteiroSelecionado.set(updated);
-        this.carregarRoteiros();
-      }
-    });
+  filtrar(): void {
+    const t = this.filtroLoja.toLowerCase().trim();
+    if (!t) {
+      this.roteirosFiltrados.set(this.roteiros());
+      return;
+    }
+    this.roteirosFiltrados.set(
+      this.roteiros().filter(
+        (r) =>
+          r.titulo.toLowerCase().includes(t) ||
+          r.loja.toLowerCase().includes(t) ||
+          (r.tarefaTitulo && r.tarefaTitulo.toLowerCase().includes(t)) ||
+          (r.criadorNome && r.criadorNome.toLowerCase().includes(t))
+      )
+    );
   }
 
-  abrirModalLeitura(roteiro: Roteiro): void {
-    this.roteiroSelecionado.set(roteiro);
-    this.modalLeituraAberto.set(true);
-  }
-
-  fecharModalLeitura(): void {
-    this.modalLeituraAberto.set(false);
+  onClienteChange(): void {
+    if (this.roteiroForm.clienteNome) {
+      this.roteiroForm.loja = this.roteiroForm.clienteNome;
+    }
   }
 
   abrirModalCriacao(): void {
-    this.emEdicao.set(false);
-    this.formRoteiro = {
-      criadorNome: 'LUCAS MATHEUS',
-      dataGravacao: new Date().toISOString().split('T')[0],
+    this.editandoId = null;
+    this.roteiroForm = {
+      titulo: '',
+      loja: 'ACADEMIA TITANIUM',
+      clienteNome: 'ACADEMIA TITANIUM',
+      instrucoesCamera: 'Ex: Lente 50mm, luz suave quente...',
+      dataGravacao: '2026-09-20',
       status: 'PENDENTE',
-      feito: false
+      tarefaId: undefined,
     };
-    this.modalFormAberto.set(true);
+    this.cenasForm = [
+      { ordem: 1, descricao: 'CENA 1: Entrada dinâmica no espaço com enquadramento amplo.' },
+      { ordem: 2, descricao: 'CENA 2: Detalhes dos equipamentos e interação com clientes.' },
+      { ordem: 3, descricao: 'CENA 3: Encerramento com chamada para ação e logo da marca.' },
+    ];
+    this.showModalCriacao.set(true);
   }
 
   abrirModalEdicao(roteiro: Roteiro): void {
-    this.emEdicao.set(true);
-    this.formRoteiro = { ...roteiro };
-    this.modalFormAberto.set(true);
+    this.editandoId = roteiro.id || null;
+    this.roteiroForm = { ...roteiro };
+    this.cenasForm = roteiro.cenas ? [...roteiro.cenas] : [];
+    this.showModalCriacao.set(true);
   }
 
-  fecharModalForm(): void {
-    this.modalFormAberto.set(false);
+  fecharModalCriacao(): void {
+    this.showModalCriacao.set(false);
+  }
+
+  adicionarCenaForm(): void {
+    this.cenasForm.push({
+      ordem: this.cenasForm.length + 1,
+      descricao: `CENA ${this.cenasForm.length + 1}: `,
+    });
+  }
+
+  removerCenaForm(idx: number): void {
+    this.cenasForm.splice(idx, 1);
   }
 
   salvarRoteiro(): void {
-    if (this.emEdicao() && this.formRoteiro.id) {
-      this.apiService.updateRoteiro(this.formRoteiro.id, this.formRoteiro).subscribe({
-        next: () => {
-          this.fecharModalForm();
-          this.carregarRoteiros();
-        }
+    if (!this.roteiroForm.titulo) return;
+
+    this.roteiroForm.cenas = this.cenasForm;
+    this.roteiroForm.loja = this.roteiroForm.clienteNome || this.roteiroForm.loja || 'Cliente';
+
+    // Se selecionou tarefa associada, preenche o título da tarefa
+    if (this.roteiroForm.tarefaId) {
+      const t = this.tarefas().find((item) => item.id === this.roteiroForm.tarefaId);
+      if (t) this.roteiroForm.tarefaTitulo = t.titulo;
+    }
+
+    if (this.editandoId) {
+      this.api.updateRoteiro(this.editandoId, this.roteiroForm).subscribe(() => {
+        this.showModalCriacao.set(false);
+        this.carregarRoteiros();
       });
     } else {
-      this.apiService.createRoteiro(this.formRoteiro).subscribe({
-        next: () => {
-          this.fecharModalForm();
-          this.carregarRoteiros();
-        }
+      this.api.createRoteiro(this.roteiroForm).subscribe(() => {
+        this.showModalCriacao.set(false);
+        this.carregarRoteiros();
       });
     }
   }
 
-  excluirRoteiro(roteiro: Roteiro): void {
-    if (!roteiro.id || !confirm(`Deseja excluir o roteiro "${roteiro.titulo}"?`)) return;
-    this.apiService.deleteRoteiro(roteiro.id).subscribe({
-      next: () => this.carregarRoteiros()
+  abrirModalLeitura(r: Roteiro): void {
+    this.roteiroSelecionado.set(r);
+    this.showModalLeitura.set(true);
+  }
+
+  toggleGravacao(r: Roteiro): void {
+    this.api.toggleGravacaoRoteiro(r.id!).subscribe((atualizado) => {
+      this.carregarRoteiros();
+      if (this.roteiroSelecionado()?.id === r.id) {
+        this.roteiroSelecionado.set(atualizado);
+      }
     });
+  }
+
+  excluirRoteiro(r: Roteiro): void {
+    if (confirm(`Deseja excluir o roteiro "${r.titulo}"?`)) {
+      this.api.deleteRoteiro(r.id!).subscribe(() => {
+        this.carregarRoteiros();
+      });
+    }
   }
 }

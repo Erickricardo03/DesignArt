@@ -19,11 +19,10 @@ import { NavigationService } from '../../core/services/navigation.service';
 
     <aside class="sidebar" [class.mobile-open]="navService.mobileSidebarOpen()">
       <div class="sidebar-header">
-        <div class="brand-logo">
+        <div class="brand-logo" routerLink="/dashboard" style="cursor: pointer;">
           <div class="logo-badge">DA</div>
           <div class="brand-info">
-            <h2>Design Arte</h2>
-            <span>Agência Criativa & Operacional</span>
+            <h2>DesignArte</h2>
           </div>
         </div>
 
@@ -33,437 +32,340 @@ import { NavigationService } from '../../core/services/navigation.service';
         </button>
       </div>
 
-      <nav class="sidebar-nav">
-        <div class="nav-section-title">PRINCIPAL</div>
-        <a routerLink="/dashboard" routerLinkActive="active" class="nav-item" (click)="onNavClick()">
-          <i class="bi bi-grid-1x2-fill"></i>
-          <span>Dashboard</span>
-        </a>
-        <a routerLink="/tarefas" routerLinkActive="active" class="nav-item" (click)="onNavClick()">
-          <i class="bi bi-check2-square"></i>
-          <span>Tarefas & Demandas</span>
-        </a>
-        <a routerLink="/roteiros" routerLinkActive="active" class="nav-item" (click)="onNavClick()">
-          <i class="bi bi-film"></i>
-          <span>Roteiros & Set</span>
-        </a>
-
-        <div class="nav-section-title">PRODUÇÃO & ASSETS</div>
-        <a routerLink="/logos" routerLinkActive="active" class="nav-item" (click)="onNavClick()">
-          <i class="bi bi-images"></i>
-          <span>Repositório de Logos</span>
-        </a>
-        <a routerLink="/eventos" routerLinkActive="active" class="nav-item" (click)="onNavClick()">
-          <i class="bi bi-camera-reels-fill"></i>
-          <span>Cobertura de Eventos</span>
-        </a>
-
-        <div class="nav-section-title">GESTÃO & CONTROLE</div>
-        <a routerLink="/financeiro" routerLinkActive="active" class="nav-item" (click)="onNavClick()">
-          <i class="bi bi-cash-stack"></i>
-          <span>Financeiro & Vendas</span>
-        </a>
-        <a routerLink="/relatorios" routerLinkActive="active" class="nav-item" (click)="onNavClick()">
-          <i class="bi bi-file-earmark-bar-graph-fill"></i>
-          <span>Relatórios Mensais</span>
-        </a>
-        <a routerLink="/" target="_blank" class="nav-item">
-          <i class="bi bi-globe2"></i>
-          <span>Página Institucional</span>
-          <i class="bi bi-box-arrow-up-right external-icon"></i>
-        </a>
-      </nav>
-
-      <div class="sidebar-footer">
-        <div class="theme-switch-container">
-          <button class="theme-toggle-btn" (click)="themeService.toggleTheme()" title="Alternar Modo Claro / Escuro">
-            <i class="bi" [ngClass]="themeService.isDarkMode() ? 'bi-moon-stars-fill' : 'bi-sun-fill'"></i>
-            <span>{{ themeService.isDarkMode() ? 'Modo Escuro' : 'Modo Claro' }}</span>
-          </button>
+      <!-- Widget de Perfil do Topo (Exatamente como em 16718.jpg) -->
+      <div class="user-top-widget">
+        <div class="user-avatar-circle">
+          <img src="https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=120&q=80" alt="Igor Santos" />
         </div>
-
-        <div class="user-profile-widget" *ngIf="authService.currentUser() as user">
-          <div class="user-avatar">{{ user.username.charAt(0).toUpperCase() }}</div>
-          <div class="user-details">
-            <p class="user-name">{{ user.nomeCompleto || user.username }}</p>
-            <span class="user-role">{{ user.cargo || user.role }}</span>
-          </div>
-          <button class="logout-btn" (click)="logout()" title="Sair do sistema">
-            <i class="bi bi-box-arrow-right"></i>
-          </button>
+        <div class="user-top-info">
+          <h3 class="user-name-title">Igor Santos</h3>
+          <span class="user-role-badge">CEO</span>
         </div>
       </div>
+
+      <!-- Navegação Lateral Completa (Exatamente na ordem de 16718.jpg) -->
+      <nav class="sidebar-nav">
+        <a routerLink="/tarefas" routerLinkActive="active" class="nav-item" (click)="onNavClick()">
+          <i class="bi bi-card-checklist"></i>
+          <span>TAREFAS</span>
+        </a>
+
+        <a routerLink="/clientes" routerLinkActive="active" class="nav-item" (click)="onNavClick()">
+          <i class="bi bi-briefcase"></i>
+          <span>CLIENTES</span>
+        </a>
+
+        <a routerLink="/servicos" routerLinkActive="active" class="nav-item" (click)="onNavClick()">
+          <i class="bi bi-currency-dollar"></i>
+          <span>SERVIÇOS</span>
+        </a>
+
+        <a routerLink="/equipe" routerLinkActive="active" class="nav-item" (click)="onNavClick()">
+          <i class="bi bi-people"></i>
+          <span>EQUIPE</span>
+        </a>
+
+        <a routerLink="/roteiros" routerLinkActive="active" class="nav-item" (click)="onNavClick()">
+          <i class="bi bi-book"></i>
+          <span>ROTEIROS</span>
+        </a>
+
+        <a routerLink="/projetos-concluidos" routerLinkActive="active" class="nav-item" (click)="onNavClick()">
+          <i class="bi bi-check2-circle"></i>
+          <span>PROJETOS CONCLUÍDOS</span>
+        </a>
+
+        <a routerLink="/loja-fotos" routerLinkActive="active" class="nav-item" (click)="onNavClick()">
+          <i class="bi bi-images"></i>
+          <span>LOJA DE FOTOS</span>
+        </a>
+
+        <a routerLink="/calendario" routerLinkActive="active" class="nav-item" (click)="onNavClick()">
+          <i class="bi bi-calendar3"></i>
+          <span>CALENDÁRIO</span>
+        </a>
+
+        <a routerLink="/financeiro" routerLinkActive="active" class="nav-item" (click)="onNavClick()">
+          <i class="bi bi-shield-check"></i>
+          <span>FINANCEIRO</span>
+        </a>
+
+        <a routerLink="/relatorios" routerLinkActive="active" class="nav-item" (click)="onNavClick()">
+          <i class="bi bi-file-earmark-bar-graph"></i>
+          <span>RELATÓRIOS</span>
+        </a>
+
+        <a routerLink="/historico" routerLinkActive="active" class="nav-item" (click)="onNavClick()">
+          <i class="bi bi-clock-history"></i>
+          <span>HISTÓRICO</span>
+        </a>
+
+        <a routerLink="/configuracoes" routerLinkActive="active" class="nav-item" (click)="onNavClick()">
+          <i class="bi bi-gear"></i>
+          <span>CONFIGURAÇÕES</span>
+        </a>
+
+        <!-- Botão Sair do Sistema (16718.jpg) -->
+        <button class="nav-item logout-nav-btn" (click)="logout()">
+          <i class="bi bi-box-arrow-right text-danger"></i>
+          <span class="text-danger">SAIR DO SISTEMA</span>
+        </button>
+      </nav>
     </aside>
 
-    <!-- Barra Inferior de Navegação Rápida para Celular (Mobile Navigation Bar) -->
+    <!-- Barra Inferior Mobile -->
     <nav class="mobile-bottom-bar" aria-label="Navegação rápida móvel">
-      <a routerLink="/dashboard" routerLinkActive="active" class="mobile-nav-btn" (click)="onNavClick()">
-        <i class="bi bi-grid-1x2-fill"></i>
-        <span>Dashboard</span>
-      </a>
       <a routerLink="/tarefas" routerLinkActive="active" class="mobile-nav-btn" (click)="onNavClick()">
-        <i class="bi bi-check2-square"></i>
+        <i class="bi bi-card-checklist"></i>
         <span>Tarefas</span>
       </a>
-      <a routerLink="/roteiros" routerLinkActive="active" class="mobile-nav-btn" (click)="onNavClick()">
-        <i class="bi bi-film"></i>
-        <span>Roteiros</span>
+      <a routerLink="/clientes" routerLinkActive="active" class="mobile-nav-btn" (click)="onNavClick()">
+        <i class="bi bi-briefcase"></i>
+        <span>Clientes</span>
       </a>
       <a routerLink="/financeiro" routerLinkActive="active" class="mobile-nav-btn" (click)="onNavClick()">
-        <i class="bi bi-cash-stack"></i>
+        <i class="bi bi-currency-dollar"></i>
         <span>Financeiro</span>
       </a>
-      <button type="button" class="mobile-nav-btn btn-more" (click)="navService.toggleMobileSidebar()">
-        <i class="bi bi-grid-fill"></i>
-        <span>Mais</span>
-      </button>
+      <a routerLink="/roteiros" routerLinkActive="active" class="mobile-nav-btn" (click)="onNavClick()">
+        <i class="bi bi-book"></i>
+        <span>Roteiros</span>
+      </a>
+      <a routerLink="/projetos-concluidos" routerLinkActive="active" class="mobile-nav-btn" (click)="onNavClick()">
+        <i class="bi bi-check2-circle"></i>
+        <span>Concluídos</span>
+      </a>
     </nav>
   `,
   styles: [`
-    .sidebar-backdrop {
-      position: fixed;
-      inset: 0;
-      background: rgba(0, 0, 0, 0.65);
-      backdrop-filter: blur(4px);
-      -webkit-backdrop-filter: blur(4px);
-      z-index: 998;
-      animation: fadeIn 0.2s ease-out;
+    :host {
+      display: block;
+      width: 260px;
+      min-width: 260px;
+      max-width: 260px;
+      flex: 0 0 260px;
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      z-index: 100;
     }
 
     .sidebar {
-      width: 280px;
+      width: 260px;
+      min-width: 260px;
       height: 100vh;
-      background: var(--bg-surface);
+      background: var(--sidebar-bg);
       border-right: 1px solid var(--border-color);
       display: flex;
       flex-direction: column;
-      position: sticky;
-      top: 0;
-      z-index: 999;
-      transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1);
-      will-change: transform;
-      contain: layout style paint;
+      overflow-y: auto;
     }
 
     .sidebar-header {
-      padding: 1.25rem 1.25rem;
-      border-bottom: 1px solid var(--border-color);
+      padding: 1.25rem 1.5rem;
       display: flex;
-      align-items: center;
       justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid var(--border-color);
     }
 
     .brand-logo {
       display: flex;
       align-items: center;
-      gap: 0.85rem;
+      gap: 0.75rem;
+      text-decoration: none;
     }
 
     .logo-badge {
-      width: 42px;
-      height: 42px;
-      border-radius: var(--radius-md);
-      background: var(--color-primary-gradient);
-      color: #FFFFFF;
-      font-family: var(--font-display);
+      font-size: 1.3rem;
       font-weight: 900;
-      font-size: 1.2rem;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      box-shadow: 0 4px 12px rgba(99, 102, 241, 0.35);
+      color: #7c3aed;
+      letter-spacing: -0.05em;
     }
 
     .brand-info h2 {
       font-size: 1.15rem;
+      font-weight: 800;
+      color: var(--text-primary);
       margin: 0;
-      line-height: 1.2;
     }
 
-    .brand-info span {
-      font-size: 0.725rem;
-      color: var(--text-muted);
-      font-weight: 500;
+    /* Widget do Usuário (16718.jpg) */
+    .user-top-widget {
+      padding: 1rem 1.25rem;
+      display: flex;
+      align-items: center;
+      gap: 0.85rem;
+      border-bottom: 1px solid var(--border-color);
+      background: rgba(124, 58, 237, 0.02);
     }
 
-    .mobile-close-btn {
-      display: none;
-      background: transparent;
-      border: none;
-      color: var(--text-secondary);
-      font-size: 1.25rem;
-      cursor: pointer;
-      padding: 0.4rem;
-      border-radius: var(--radius-sm);
+    .user-avatar-circle {
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      overflow: hidden;
+      background: #7c3aed;
+      flex-shrink: 0;
+    }
+
+    .user-avatar-circle img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .user-top-info {
+      overflow: hidden;
+    }
+
+    .user-name-title {
+      font-size: 0.92rem;
+      font-weight: 800;
+      color: var(--text-primary);
+      margin: 0 0 0.15rem 0;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+      overflow: hidden;
+    }
+
+    .user-role-badge {
+      font-size: 0.7rem;
+      font-weight: 800;
+      color: #7c3aed;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
     }
 
     .sidebar-nav {
-      flex: 1;
       padding: 1rem 0.75rem;
       display: flex;
       flex-direction: column;
-      gap: 0.25rem;
-      overflow-y: auto;
-      -webkit-overflow-scrolling: touch;
-    }
-
-    .nav-section-title {
-      font-size: 0.685rem;
-      font-weight: 800;
-      letter-spacing: 0.08em;
-      color: var(--text-muted);
-      padding: 0.75rem 0.75rem 0.25rem;
-      text-transform: uppercase;
+      gap: 0.3rem;
+      flex: 1;
     }
 
     .nav-item {
       display: flex;
       align-items: center;
       gap: 0.85rem;
-      padding: 0.7rem 0.85rem;
-      border-radius: var(--radius-md);
+      padding: 0.75rem 1rem;
+      border-radius: 8px;
       color: var(--text-secondary);
-      font-size: 0.875rem;
-      font-weight: 600;
-      transition: background 0.15s, color 0.15s;
-      min-height: 44px; /* Touch target otimizado */
+      text-decoration: none;
+      font-weight: 700;
+      font-size: 0.82rem;
+      letter-spacing: 0.04em;
+      transition: all 0.2s ease;
+      background: transparent;
+      border: none;
+      width: 100%;
+      text-align: left;
+      cursor: pointer;
     }
 
     .nav-item i {
-      font-size: 1.15rem;
-      color: var(--text-muted);
-      transition: color 0.15s;
+      font-size: 1.1rem;
     }
 
-    .nav-item .external-icon {
-      margin-left: auto;
-      font-size: 0.8rem;
-    }
-
-    .nav-item:hover, .nav-item:active {
-      background: var(--bg-surface-elevated);
+    .nav-item:hover {
+      background: rgba(124, 58, 237, 0.06);
       color: var(--text-primary);
     }
 
     .nav-item.active {
-      background: var(--color-primary-light);
-      color: var(--color-primary);
-      font-weight: 700;
+      background: #7c3aed;
+      color: #ffffff !important;
+      font-weight: 800;
+      box-shadow: 0 4px 14px rgba(124, 58, 237, 0.35);
     }
 
-    .nav-item.active i {
-      color: var(--color-primary);
+    .logout-nav-btn {
+      margin-top: 1rem;
+      border-top: 1px solid var(--border-color);
+      padding-top: 1rem;
+    }
+
+    .text-danger {
+      color: #ef4444 !important;
     }
 
     .sidebar-footer {
-      padding: 1rem 0.85rem;
+      padding: 1rem 1.25rem;
       border-top: 1px solid var(--border-color);
-      display: flex;
-      flex-direction: column;
-      gap: 0.75rem;
     }
 
-    .theme-switch-container {
-      width: 100%;
-    }
-
-    .theme-toggle-btn {
-      width: 100%;
-      min-height: 42px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 0.6rem;
-      padding: 0.55rem;
-      border-radius: var(--radius-md);
-      border: 1px solid var(--border-color);
-      background: var(--bg-surface-elevated);
-      color: var(--text-secondary);
-      font-size: 0.825rem;
-      font-weight: 600;
-      cursor: pointer;
-      transition: background 0.15s, color 0.15s;
-    }
-
-    .theme-toggle-btn:hover {
-      background: var(--bg-surface-hover);
-      color: var(--text-primary);
-    }
-
-    .user-profile-widget {
-      display: flex;
-      align-items: center;
-      gap: 0.75rem;
-      padding: 0.6rem 0.75rem;
-      background: var(--bg-surface-elevated);
-      border-radius: var(--radius-md);
-      border: 1px solid var(--border-color);
-    }
-
-    .user-avatar {
-      width: 36px;
-      height: 36px;
-      border-radius: var(--radius-full);
-      background: var(--color-primary-gradient);
-      color: white;
-      font-weight: 700;
-      font-size: 0.9rem;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-
-    .user-details {
-      flex: 1;
-      min-width: 0;
-    }
-
-    .user-name {
-      font-size: 0.825rem;
-      font-weight: 700;
-      margin: 0;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-
-    .user-role {
-      font-size: 0.7rem;
-      color: var(--text-muted);
-      display: block;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-
-    .logout-btn {
-      background: transparent;
+    .mobile-close-btn {
+      display: none;
+      background: none;
       border: none;
-      color: var(--text-muted);
+      color: var(--text-secondary);
+      font-size: 1.2rem;
       cursor: pointer;
-      font-size: 1.25rem;
-      padding: 0.4rem;
-      min-width: 40px;
-      min-height: 40px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      border-radius: var(--radius-sm);
-      transition: color 0.15s, background 0.15s;
     }
 
-    .logout-btn:hover {
-      color: var(--color-danger);
-      background: var(--color-danger-light);
-    }
-
-    /* Regras de Responsividade Mobile & Tablet */
-    @media (max-width: 992px) {
-      .sidebar {
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 290px;
-        max-width: 85vw;
-        height: 100vh;
-        height: 100dvh;
-        transform: translateX(-105%);
-        visibility: hidden;
-        pointer-events: none;
-        box-shadow: none;
-        z-index: 1000;
-        transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1), visibility 0.28s ease;
-      }
-
-      .sidebar.mobile-open {
-        transform: translateX(0);
-        visibility: visible;
-        pointer-events: auto;
-        box-shadow: 0 0 40px rgba(0, 0, 0, 0.5);
-      }
-
-      .mobile-close-btn {
-        display: block;
-      }
-    }
-
-    /* Barra Inferior para Celulares (<= 768px) */
     .mobile-bottom-bar {
       display: none;
       position: fixed;
       bottom: 0;
       left: 0;
       right: 0;
-      width: 100%;
-      max-width: 100vw;
-      height: 60px;
-      padding-bottom: env(safe-area-inset-bottom, 0);
-      background: var(--bg-surface);
+      background: var(--card-bg);
       border-top: 1px solid var(--border-color);
-      z-index: 950;
-      box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.1);
-      backdrop-filter: blur(12px);
-      -webkit-backdrop-filter: blur(12px);
+      height: 60px;
+      z-index: 999;
       justify-content: space-around;
       align-items: center;
-      touch-action: manipulation;
-      box-sizing: border-box;
-      overflow: hidden;
+      padding: 0 0.5rem;
     }
 
     .mobile-nav-btn {
-      flex: 1;
       display: flex;
       flex-direction: column;
       align-items: center;
-      justify-content: center;
-      gap: 2px;
-      height: 100%;
-      background: transparent;
-      border: none;
-      color: var(--text-muted);
-      font-size: 0.675rem;
-      font-weight: 700;
-      cursor: pointer;
+      color: var(--text-secondary);
       text-decoration: none;
-      transition: color 0.15s ease, transform 0.15s ease;
-      user-select: none;
-      -webkit-tap-highlight-color: transparent;
-      min-width: 0;
-    }
-
-    .mobile-nav-btn span {
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      max-width: 100%;
       font-size: 0.65rem;
+      font-weight: 700;
+      gap: 2px;
     }
 
     .mobile-nav-btn i {
-      font-size: 1.2rem;
-      line-height: 1;
-      transition: transform 0.15s ease, color 0.15s ease;
+      font-size: 1.15rem;
     }
 
     .mobile-nav-btn.active {
-      color: var(--color-primary);
+      color: var(--primary);
     }
 
-    .mobile-nav-btn.active i {
-      transform: scale(1.12);
-      color: var(--color-primary);
-    }
-
-    .mobile-nav-btn:active {
-      transform: scale(0.92);
-    }
-
-    .btn-more {
-      color: var(--text-secondary);
-    }
-
-    @media (max-width: 768px) {
+    @media (max-width: 900px) {
+      :host {
+        width: 0;
+        min-width: 0;
+        max-width: 0;
+        flex: 0 0 0;
+        position: static;
+        height: auto;
+      }
+      .sidebar {
+        position: fixed;
+        left: -280px;
+        top: 0;
+        z-index: 1000;
+        transition: left 0.3s ease;
+      }
+      .sidebar.mobile-open {
+        left: 0;
+      }
+      .mobile-close-btn {
+        display: block;
+      }
+      .sidebar-backdrop {
+        position: fixed;
+        inset: 0;
+        background: rgba(0,0,0,0.6);
+        z-index: 999;
+      }
       .mobile-bottom-bar {
         display: flex;
       }
@@ -477,9 +379,7 @@ export class SidebarComponent {
   private router = inject(Router);
 
   onNavClick(): void {
-    if (window.innerWidth <= 992) {
-      this.navService.closeMobileSidebar();
-    }
+    this.navService.closeMobileSidebar();
   }
 
   logout(): void {

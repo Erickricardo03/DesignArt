@@ -4,14 +4,14 @@ import { Injectable, signal } from '@angular/core';
   providedIn: 'root',
 })
 export class ThemeService {
-  isDarkMode = signal<boolean>(true);
+  isDarkMode = signal<boolean>(false);
 
   constructor() {
     const savedTheme = localStorage.getItem('designart_theme');
     if (savedTheme) {
       this.isDarkMode.set(savedTheme === 'dark');
     } else {
-      this.isDarkMode.set(true); // Padrão Dark como o sistema Design Arte
+      this.isDarkMode.set(false); // Padrão White / Light
     }
     this.applyTheme();
   }
