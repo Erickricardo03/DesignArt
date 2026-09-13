@@ -140,6 +140,9 @@ import { SidebarComponent } from '../../shared/components/sidebar.component';
       gap: 2rem;
       align-items: start;
     }
+    .servicos-layout-grid > * {
+      min-width: 0;
+    }
     @media (max-width: 960px) {
       .servicos-layout-grid {
         grid-template-columns: 1fr;
@@ -206,6 +209,7 @@ import { SidebarComponent } from '../../shared/components/sidebar.component';
     /* Painel Principal */
     .servicos-header-bar {
       display: flex;
+      flex-wrap: wrap;
       justify-content: space-between;
       align-items: center;
       margin-bottom: 1.5rem;
@@ -221,6 +225,8 @@ import { SidebarComponent } from '../../shared/components/sidebar.component';
     .search-wrap {
       position: relative;
       width: 280px;
+      max-width: 100%;
+      flex: 1 1 200px;
     }
     .search-wrap input {
       width: 100%;

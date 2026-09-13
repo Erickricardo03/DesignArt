@@ -124,9 +124,11 @@ import { SidebarComponent } from '../../shared/components/sidebar.component';
     }
     .table-header-box {
       display: flex;
+      flex-wrap: wrap;
       justify-content: space-between;
       align-items: center;
       margin-bottom: 1.25rem;
+      gap: 0.75rem;
     }
     .card-table-title {
       font-size: 0.95rem;
@@ -138,6 +140,8 @@ import { SidebarComponent } from '../../shared/components/sidebar.component';
     .filter-search-wrap {
       position: relative;
       width: 280px;
+      max-width: 100%;
+      flex: 1 1 200px;
     }
     .filter-search-wrap input {
       width: 100%;

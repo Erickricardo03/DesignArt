@@ -531,9 +531,11 @@ import { VendaFoto, Despesa, FluxoCaixa, Fatura, Cliente, SaudeFinanceira } from
     }
     .segmented-control {
       display: flex;
+      flex-wrap: wrap;
       background: rgba(0,0,0,0.04);
       padding: 0.25rem;
       border-radius: 8px;
+      max-width: 100%;
     }
     .seg-btn {
       background: none;
@@ -544,6 +546,8 @@ import { VendaFoto, Despesa, FluxoCaixa, Fatura, Cliente, SaudeFinanceira } from
       font-weight: 700;
       color: var(--text-secondary);
       cursor: pointer;
+      white-space: nowrap;
+      flex-shrink: 0;
     }
     .seg-btn.active {
       background: var(--card-bg);
@@ -606,9 +610,11 @@ import { VendaFoto, Despesa, FluxoCaixa, Fatura, Cliente, SaudeFinanceira } from
     }
     .fluxo-header-row {
       display: flex;
+      flex-wrap: wrap;
       justify-content: space-between;
       align-items: flex-start;
       margin-bottom: 1.5rem;
+      gap: 0.75rem;
     }
     .chart-indicators-row {
       display: flex;

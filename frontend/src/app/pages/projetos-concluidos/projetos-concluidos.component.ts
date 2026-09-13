@@ -224,9 +224,11 @@ import { SidebarComponent } from '../../shared/components/sidebar.component';
     }
     .table-card-header {
       display: flex;
+      flex-wrap: wrap;
       justify-content: space-between;
       align-items: center;
       margin-bottom: 1.25rem;
+      gap: 0.75rem;
     }
     .card-table-title {
       font-size: 1.05rem;
@@ -238,6 +240,8 @@ import { SidebarComponent } from '../../shared/components/sidebar.component';
     .table-search-mini {
       position: relative;
       width: 260px;
+      max-width: 100%;
+      flex: 1 1 200px;
     }
     .table-search-mini input {
       width: 100%;

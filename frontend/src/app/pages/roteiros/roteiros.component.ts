@@ -398,11 +398,13 @@ import { Roteiro, Tarefa, Cliente, RoteiroCena } from '../../core/models';
     /* Footer (16756.jpg) */
     .script-card-footer {
       display: flex;
+      flex-wrap: wrap;
       justify-content: space-between;
       align-items: center;
       margin-top: auto;
       padding-top: 0.85rem;
       border-top: 1px solid #2d3748;
+      gap: 0.6rem;
     }
     .script-date {
       font-size: 0.78rem;
@@ -410,9 +412,11 @@ import { Roteiro, Tarefa, Cliente, RoteiroCena } from '../../core/models';
       display: flex;
       align-items: center;
       gap: 0.4rem;
+      flex-shrink: 0;
     }
     .footer-btn-group {
       display: flex;
+      flex-wrap: wrap;
       align-items: center;
       gap: 0.6rem;
     }

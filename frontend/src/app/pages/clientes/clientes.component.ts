@@ -470,6 +470,8 @@ import { SidebarComponent } from '../../shared/components/sidebar.component';
     }
     .marca-header-text {
       flex: 1;
+      min-width: 0;
+      overflow: hidden;
     }
     .marca-nome {
       font-size: 1.05rem;
@@ -477,6 +479,9 @@ import { SidebarComponent } from '../../shared/components/sidebar.component';
       color: var(--text-primary);
       margin: 0 0 0.2rem 0;
       letter-spacing: 0.02em;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
     .marca-categoria {
       font-size: 0.72rem;

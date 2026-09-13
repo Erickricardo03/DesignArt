@@ -199,6 +199,9 @@ import { SidebarComponent } from '../../shared/components/sidebar.component';
       gap: 2rem;
       align-items: start;
     }
+    .equipe-layout-grid > * {
+      min-width: 0;
+    }
     @media (max-width: 960px) {
       .equipe-layout-grid {
         grid-template-columns: 1fr;
@@ -216,6 +219,7 @@ import { SidebarComponent } from '../../shared/components/sidebar.component';
       flex-direction: column;
       gap: 1.25rem;
       box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
+      min-width: 0;
     }
     .badge-subtitle {
       font-size: 0.72rem;
@@ -278,6 +282,7 @@ import { SidebarComponent } from '../../shared/components/sidebar.component';
     /* Painel Principal */
     .equipe-header-bar {
       display: flex;
+      flex-wrap: wrap;
       justify-content: space-between;
       align-items: center;
       margin-bottom: 1.5rem;
@@ -293,6 +298,8 @@ import { SidebarComponent } from '../../shared/components/sidebar.component';
     .search-wrap {
       position: relative;
       width: 280px;
+      max-width: 100%;
+      flex: 1 1 200px;
     }
     .search-wrap input {
       width: 100%;

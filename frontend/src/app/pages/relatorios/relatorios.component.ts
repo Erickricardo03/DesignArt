@@ -286,6 +286,8 @@ import { RelatorioMensalItem } from '../../core/models';
       text-align: left;
       vertical-align: middle;
       box-sizing: border-box;
+      word-break: break-word;
+      overflow-wrap: break-word;
     }
 
     .report-table tbody td {
@@ -340,13 +342,16 @@ import { RelatorioMensalItem } from '../../core/models';
 
     .status-badge {
       display: inline-block;
+      max-width: 100%;
       padding: 0.25rem 0.55rem;
       border-radius: 9999px;
       font-size: 0.72rem;
       font-weight: 800;
       letter-spacing: 0.04em;
       text-transform: uppercase;
-      white-space: nowrap;
+      white-space: normal;
+      word-break: break-word;
+      text-align: center;
       border: 1.5px solid currentColor;
     }
 
@@ -370,7 +375,9 @@ import { RelatorioMensalItem } from '../../core/models';
       border: 1px solid var(--border-color);
       color: var(--text-primary);
       font-weight: 600;
-      white-space: nowrap;
+      white-space: normal;
+      word-break: break-word;
+      max-width: 100%;
     }
 
     .prazo-text {
@@ -433,15 +440,18 @@ import { RelatorioMensalItem } from '../../core/models';
         font-size: 0.72rem !important;
         padding: 0.45rem 0.25rem !important;
       }
-      .col-loja { width: 22% !important; }
-      .col-demanda { width: 28% !important; }
-      .col-status { width: 16% !important; }
-      .col-criador { width: 16% !important; }
+      .col-loja { width: 20% !important; }
+      .col-demanda { width: 24% !important; }
+      .col-status { width: 20% !important; }
+      .col-criador { width: 18% !important; }
       .col-participantes { display: none !important; }
       .col-prazo { width: 18% !important; }
       .status-badge {
         padding: 0.15rem 0.35rem !important;
-        font-size: 0.62rem !important;
+        font-size: 0.6rem !important;
+        white-space: normal !important;
+        line-height: 1.25 !important;
+        text-align: center;
       }
     }
 
