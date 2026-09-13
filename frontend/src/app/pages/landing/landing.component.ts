@@ -2,11 +2,12 @@ import { Component, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { ThemeService } from '../../core/services/theme.service';
+import { RevealOnScrollDirective } from '../../shared/directives/reveal-on-scroll.directive';
 
 @Component({
   selector: 'app-landing',
   standalone: true,
-  imports: [CommonModule, RouterModule],
+  imports: [CommonModule, RouterModule, RevealOnScrollDirective],
   template: `
     <div class="landing-page">
       <!-- Navbar Pública -->
@@ -33,18 +34,24 @@ import { ThemeService } from '../../core/services/theme.service';
 
       <!-- Hero Section -->
       <section class="hero-section">
+        <div class="hero-aurora" aria-hidden="true">
+          <span class="aurora-blob blob-1"></span>
+          <span class="aurora-blob blob-2"></span>
+          <span class="aurora-blob blob-3"></span>
+        </div>
+
         <div class="hero-content">
-          <div class="hero-logo-box">
+          <div class="hero-logo-box hero-fade-in">
             <img src="/logo-da.png" alt="Design Arte" class="hero-logo" />
           </div>
 
-          <span class="hero-tag">AGÊNCIA CRIATIVA & OPERACIONAL</span>
-          <h1 class="hero-title">Design Arte</h1>
-          <p class="hero-description">
+          <span class="hero-tag hero-fade-in" style="animation-delay: 0.08s">AGÊNCIA CRIATIVA & OPERACIONAL</span>
+          <h1 class="hero-title hero-fade-in" style="animation-delay: 0.16s">Design Arte</h1>
+          <p class="hero-description hero-fade-in" style="animation-delay: 0.24s">
             Cada projeto é cuidadosamente elaborado, com detalhes minuciosos e uma mistura de técnicas autênticas.
           </p>
 
-          <div class="hero-cta-group">
+          <div class="hero-cta-group hero-fade-in" style="animation-delay: 0.32s">
             <a href="https://wa.me/5582999999999" target="_blank" class="btn-cta-contact">
               Entrar em contato <i class="bi bi-arrow-right"></i>
             </a>
@@ -57,11 +64,11 @@ import { ThemeService } from '../../core/services/theme.service';
 
       <!-- SEÇÃO CASES (Exatamente como em 16701.jpg) -->
       <section class="section-container">
-        <span class="section-badge-purple">CASES</span>
-        <h2 class="section-title-large">Resultados com acabamento, ritmo e entrega.</h2>
+        <span class="section-badge-purple" appReveal>CASES</span>
+        <h2 class="section-title-large" appReveal [appRevealDelay]="60">Resultados com acabamento, ritmo e entrega.</h2>
 
         <div class="cases-grid">
-          <div class="case-card">
+          <div class="case-card" appReveal>
             <div class="case-client-badge">
               <i class="bi bi-check-circle-fill text-purple"></i>
               <span>Aurora Beauty</span>
@@ -70,7 +77,7 @@ import { ThemeService } from '../../core/services/theme.service';
             <p class="case-desc">Reposicionamento visual e social media</p>
           </div>
 
-          <div class="case-card">
+          <div class="case-card" appReveal [appRevealDelay]="100">
             <div class="case-client-badge">
               <i class="bi bi-check-circle-fill text-purple"></i>
               <span>Studio Forma</span>
@@ -79,7 +86,7 @@ import { ThemeService } from '../../core/services/theme.service';
             <p class="case-desc">Campanhas locais e vídeos curtos</p>
           </div>
 
-          <div class="case-card">
+          <div class="case-card" appReveal [appRevealDelay]="200">
             <div class="case-client-badge">
               <i class="bi bi-check-circle-fill text-purple"></i>
               <span>Casa Nativa</span>
@@ -96,31 +103,31 @@ import { ThemeService } from '../../core/services/theme.service';
         <h2 class="section-title-large">Equipe completa para destacar a sua marca.</h2>
 
         <div class="services-carousel-grid">
-          <div class="service-card-item">
+          <div class="service-card-item" appReveal>
             <div class="service-icon-box"><i class="bi bi-palette"></i></div>
             <h3 class="service-name">Identidade Visual</h3>
             <p class="service-text">Direção criativa, logotipos, guias de marca e peças para campanhas de impacto.</p>
           </div>
 
-          <div class="service-card-item">
+          <div class="service-card-item" appReveal [appRevealDelay]="60">
             <div class="service-icon-box"><i class="bi bi-laptop"></i></div>
             <h3 class="service-name">Redes Sociais</h3>
             <p class="service-text">Calendário editorial estratégico, design premium, copy, publicação e inteligência.</p>
           </div>
 
-          <div class="service-card-item">
+          <div class="service-card-item" appReveal [appRevealDelay]="120">
             <div class="service-icon-box"><i class="bi bi-film"></i></div>
             <h3 class="service-name">Vídeos e Roteiros</h3>
             <p class="service-text">Roteiro, captação cinemática, edição dinâmica e entregas otimizadas por plataforma.</p>
           </div>
 
-          <div class="service-card-item">
+          <div class="service-card-item" appReveal [appRevealDelay]="180">
             <div class="service-icon-box"><i class="bi bi-camera"></i></div>
             <h3 class="service-name">Fotografia</h3>
             <p class="service-text">Ensaios corporativos, produtos, eventos e materiais visuais para posicionamento.</p>
           </div>
 
-          <div class="service-card-item">
+          <div class="service-card-item" appReveal [appRevealDelay]="240">
             <div class="service-icon-box"><i class="bi bi-megaphone"></i></div>
             <h3 class="service-name">Marketing Digital</h3>
             <p class="service-text">Campanhas de tráfego, funis de conversão, criativos de alta performance e escala.</p>
@@ -134,7 +141,7 @@ import { ThemeService } from '../../core/services/theme.service';
         <h2 class="section-title-large">Quem trabalha conosco, confia e recomenda.</h2>
 
         <div class="testimonials-grid">
-          <div class="testimonial-card">
+          <div class="testimonial-card" appReveal>
             <div class="stars-row">
               <i class="bi bi-star-fill"></i>
               <i class="bi bi-star-fill"></i>
@@ -151,7 +158,7 @@ import { ThemeService } from '../../core/services/theme.service';
             </div>
           </div>
 
-          <div class="testimonial-card">
+          <div class="testimonial-card" appReveal [appRevealDelay]="80">
             <div class="stars-row">
               <i class="bi bi-star-fill"></i>
               <i class="bi bi-star-fill"></i>
@@ -168,7 +175,7 @@ import { ThemeService } from '../../core/services/theme.service';
             </div>
           </div>
 
-          <div class="testimonial-card">
+          <div class="testimonial-card" appReveal [appRevealDelay]="160">
             <div class="stars-row">
               <i class="bi bi-star-fill"></i>
               <i class="bi bi-star-fill"></i>
@@ -185,7 +192,7 @@ import { ThemeService } from '../../core/services/theme.service';
             </div>
           </div>
 
-          <div class="testimonial-card">
+          <div class="testimonial-card" appReveal [appRevealDelay]="240">
             <div class="stars-row">
               <i class="bi bi-star-fill"></i>
               <i class="bi bi-star-fill"></i>
@@ -206,20 +213,20 @@ import { ThemeService } from '../../core/services/theme.service';
 
       <!-- SEÇÃO CLIENTES (Exatamente como em 16703.jpg) -->
       <section class="section-container">
-        <span class="section-badge-purple">CLIENTES</span>
-        <h2 class="section-title-large">Marcas que confiam no nosso trabalho.</h2>
+        <span class="section-badge-purple" appReveal>CLIENTES</span>
+        <h2 class="section-title-large" appReveal [appRevealDelay]="60">Marcas que confiam no nosso trabalho.</h2>
 
         <div class="clients-logos-grid">
-          <div class="client-logo-card">
+          <div class="client-logo-card" appReveal>
             <span class="client-brand-text font-bold">SR. JUNIOR</span>
           </div>
-          <div class="client-logo-card">
+          <div class="client-logo-card" appReveal [appRevealDelay]="60">
             <span class="client-brand-text font-bold">VivaMais</span>
           </div>
-          <div class="client-logo-card">
+          <div class="client-logo-card" appReveal [appRevealDelay]="120">
             <span class="client-brand-text font-bold">Ateliê da Ysa</span>
           </div>
-          <div class="client-logo-card">
+          <div class="client-logo-card" appReveal [appRevealDelay]="180">
             <span class="client-brand-text font-bold">ACADEMIA TITANIUM</span>
           </div>
         </div>
@@ -313,6 +320,11 @@ import { ThemeService } from '../../core/services/theme.service';
       justify-content: center;
       color: var(--text-primary);
       cursor: pointer;
+      transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1), background 0.2s ease;
+    }
+    .theme-toggle:hover {
+      background: var(--bg-surface-elevated);
+      transform: rotate(20deg);
     }
     .btn-internal-portal {
       background: #1e293b;
@@ -325,6 +337,11 @@ import { ThemeService } from '../../core/services/theme.service';
       display: flex;
       align-items: center;
       gap: 0.4rem;
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+    .btn-internal-portal:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 16px rgba(30, 41, 59, 0.3);
     }
 
     /* Hero */
@@ -333,12 +350,70 @@ import { ThemeService } from '../../core/services/theme.service';
       text-align: center;
       display: flex;
       justify-content: center;
+      position: relative;
+      overflow: hidden;
     }
     .hero-content {
       max-width: 700px;
       display: flex;
       flex-direction: column;
       align-items: center;
+      position: relative;
+      z-index: 1;
+    }
+    .hero-fade-in {
+      opacity: 0;
+      animation: heroFadeUp 0.7s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+    @keyframes heroFadeUp {
+      from { opacity: 0; transform: translateY(18px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Fundo decorativo com blobs animados (tema "estúdio criativo") */
+    .hero-aurora {
+      position: absolute;
+      inset: 0;
+      overflow: hidden;
+      pointer-events: none;
+      z-index: 0;
+    }
+    .aurora-blob {
+      position: absolute;
+      border-radius: 50%;
+      filter: blur(60px);
+      opacity: 0.25;
+      animation: auroraDrift 14s ease-in-out infinite alternate;
+    }
+    .blob-1 {
+      width: 320px;
+      height: 320px;
+      background: #7c3aed;
+      top: -100px;
+      left: -60px;
+      animation-duration: 16s;
+    }
+    .blob-2 {
+      width: 280px;
+      height: 280px;
+      background: #06b6d4;
+      top: 20px;
+      right: -80px;
+      animation-duration: 19s;
+      animation-delay: -4s;
+    }
+    .blob-3 {
+      width: 240px;
+      height: 240px;
+      background: #f59e0b;
+      bottom: -120px;
+      left: 40%;
+      animation-duration: 21s;
+      animation-delay: -8s;
+    }
+    @keyframes auroraDrift {
+      from { transform: translate(0, 0) scale(1); }
+      to { transform: translate(30px, 20px) scale(1.15); }
     }
     .hero-logo-box {
       margin-bottom: 1.5rem;
@@ -389,6 +464,17 @@ import { ThemeService } from '../../core/services/theme.service';
       align-items: center;
       gap: 0.5rem;
       box-shadow: 0 4px 18px rgba(124, 58, 237, 0.4);
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+    .btn-cta-contact:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 8px 24px rgba(124, 58, 237, 0.5);
+    }
+    .btn-cta-contact i {
+      transition: transform 0.2s ease;
+    }
+    .btn-cta-contact:hover i {
+      transform: translateX(4px);
     }
     .btn-cta-panel {
       background: var(--card-bg);
@@ -399,6 +485,11 @@ import { ThemeService } from '../../core/services/theme.service';
       font-weight: 800;
       font-size: 0.95rem;
       text-decoration: none;
+      transition: transform 0.2s ease, border-color 0.2s ease;
+    }
+    .btn-cta-panel:hover {
+      transform: translateY(-3px);
+      border-color: #7c3aed;
     }
 
     /* Seções Comuns */
@@ -439,6 +530,12 @@ import { ThemeService } from '../../core/services/theme.service';
       display: flex;
       flex-direction: column;
       gap: 0.75rem;
+      transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
+    }
+    .case-card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 12px 28px rgba(124, 58, 237, 0.12);
+      border-color: rgba(124, 58, 237, 0.35);
     }
     .case-client-badge {
       display: flex;
@@ -475,6 +572,16 @@ import { ThemeService } from '../../core/services/theme.service';
       display: flex;
       flex-direction: column;
       gap: 0.65rem;
+      transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
+    }
+    .service-card-item:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 12px 28px rgba(124, 58, 237, 0.12);
+      border-color: rgba(124, 58, 237, 0.35);
+    }
+    .service-card-item:hover .service-icon-box {
+      transform: scale(1.1) rotate(-4deg);
+      background: rgba(124, 58, 237, 0.16);
     }
     .service-icon-box {
       width: 44px;
@@ -486,6 +593,7 @@ import { ThemeService } from '../../core/services/theme.service';
       align-items: center;
       justify-content: center;
       font-size: 1.25rem;
+      transition: transform 0.25s ease, background 0.25s ease;
     }
     .service-name {
       font-size: 0.98rem;
@@ -515,6 +623,11 @@ import { ThemeService } from '../../core/services/theme.service';
       display: flex;
       flex-direction: column;
       gap: 1rem;
+      transition: transform 0.25s ease, box-shadow 0.25s ease;
+    }
+    .testimonial-card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 12px 28px rgba(0, 0, 0, 0.08);
     }
     .stars-row {
       color: #f59e0b;
@@ -554,6 +667,12 @@ import { ThemeService } from '../../core/services/theme.service';
       align-items: center;
       justify-content: center;
       box-shadow: 0 4px 12px rgba(0,0,0,0.02);
+      transition: transform 0.25s ease, filter 0.25s ease;
+      filter: grayscale(0.4);
+    }
+    .client-logo-card:hover {
+      transform: translateY(-3px) scale(1.03);
+      filter: grayscale(0);
     }
     .client-brand-text {
       font-size: 1.05rem;

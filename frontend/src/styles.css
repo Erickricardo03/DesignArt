@@ -238,6 +238,8 @@ app-sidebar {
 
 .card:hover {
   border-color: var(--border-subtle);
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-md);
 }
 
 @media (max-width: 576px) {
@@ -295,6 +297,7 @@ app-sidebar {
 .btn-primary:hover {
   box-shadow: 0 6px 18px rgba(99, 102, 241, 0.45);
   filter: brightness(1.05);
+  transform: translateY(-2px);
 }
 
 .btn-secondary {
@@ -306,6 +309,7 @@ app-sidebar {
 .btn-secondary:hover {
   background: var(--bg-surface-hover);
   border-color: var(--border-subtle);
+  transform: translateY(-2px);
 }
 
 .btn-teal {
@@ -316,6 +320,7 @@ app-sidebar {
 
 .btn-teal:hover {
   filter: brightness(1.1);
+  transform: translateY(-2px);
 }
 
 .btn-success {
@@ -409,6 +414,7 @@ app-sidebar {
   background: rgba(244, 63, 94, 0.15);
   color: #F43F5E;
   border: 1px solid rgba(244, 63, 94, 0.3);
+  animation: pulseSoft 2s ease-in-out infinite;
 }
 
 .badge-concluida {
@@ -436,6 +442,7 @@ app-sidebar {
   background: rgba(239, 68, 68, 0.2);
   color: #EF4444;
   font-weight: 800;
+  animation: pulseSoft 2s ease-in-out infinite;
 }
 
 /* Forms & Inputs */
@@ -883,6 +890,84 @@ textarea.form-control {
 @keyframes slideUp {
   from { opacity: 0; transform: translateY(20px) scale(0.97); }
   to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes pulseSoft {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.35); }
+  50% { box-shadow: 0 0 0 5px rgba(239, 68, 68, 0); }
+}
+
+@keyframes pageEnter {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes staggerIn {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes spinSlow {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* Page entrance: toda vez que uma página com .page-body é montada, ela entra suavemente */
+.page-body {
+  animation: pageEnter 0.45s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Utilitário: reveal on scroll (usado com a diretiva appReveal) */
+.reveal-on-scroll {
+  opacity: 0;
+  transform: translateY(28px);
+  transition: opacity 0.7s cubic-bezier(0.16, 1, 0.3, 1), transform 0.7s cubic-bezier(0.16, 1, 0.3, 1);
+  transition-delay: var(--reveal-delay, 0ms);
+  will-change: opacity, transform;
+}
+
+.reveal-on-scroll.is-visible {
+  opacity: 1;
+  transform: none;
+}
+
+/* Utilitário: entrada em cascata para grids de cards (basta adicionar a classe) */
+.stagger-grid > * {
+  opacity: 0;
+  animation: staggerIn 0.55s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.stagger-grid > *:nth-child(1) { animation-delay: 0.03s; }
+.stagger-grid > *:nth-child(2) { animation-delay: 0.09s; }
+.stagger-grid > *:nth-child(3) { animation-delay: 0.15s; }
+.stagger-grid > *:nth-child(4) { animation-delay: 0.21s; }
+.stagger-grid > *:nth-child(5) { animation-delay: 0.27s; }
+.stagger-grid > *:nth-child(6) { animation-delay: 0.33s; }
+.stagger-grid > *:nth-child(n+7) { animation-delay: 0.38s; }
+
+/* Utilitário: números animados por CountUpDirective ficam com largura estável */
+[appCountUp] {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Utilitário genérico de elevação no hover, para qualquer elemento */
+.hover-lift {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.hover-lift:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-md);
+}
+
+/* Acessibilidade: respeita a preferência do usuário por menos movimento */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
 }
 
 /* Custom Checkbox */

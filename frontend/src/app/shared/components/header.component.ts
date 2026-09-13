@@ -168,12 +168,14 @@ import { ThemeService } from '../../core/services/theme.service';
       background: #fbbf24;
       color: #78350f;
       font-size: 0.85rem;
-      transition: all 0.25s ease;
+      transition: background 0.25s ease, color 0.25s ease, transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+      transform: rotate(0deg);
     }
 
     .theme-icon-badge.dark-active {
       background: #7c3aed;
       color: #ffffff;
+      transform: rotate(360deg);
     }
 
     .theme-text-lbl {

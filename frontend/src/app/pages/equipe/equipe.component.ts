@@ -54,8 +54,8 @@ import { SidebarComponent } from '../../shared/components/sidebar.component';
               </div>
 
               <!-- Grid de Colaboradores -->
-              <div class="colaboradores-grid">
-                <div class="colaborador-card" *ngFor="let c of colaboradoresFiltrados()">
+              <div class="colaboradores-grid stagger-grid">
+                <div class="colaborador-card hover-lift" *ngFor="let c of colaboradoresFiltrados()">
                   <div class="colab-top">
                     <div class="colab-avatar-wrap">
                       <img *ngIf="c.avatarUrl" [src]="c.avatarUrl" [alt]="c.nomeCompleto" />

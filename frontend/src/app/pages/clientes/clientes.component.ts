@@ -52,8 +52,8 @@ import { SidebarComponent } from '../../shared/components/sidebar.component';
           </div>
 
           <!-- Grid de Marcas Ativas (Card igual a imagem 16714.jpg) -->
-          <div class="marcas-grid">
-            <div class="marca-card" *ngFor="let cliente of clientesFiltrados()">
+          <div class="marcas-grid stagger-grid">
+            <div class="marca-card hover-lift" *ngFor="let cliente of clientesFiltrados()">
               <div class="marca-card-header">
                 <div class="marca-logo-wrap">
                   <img *ngIf="cliente.logoUrl" [src]="cliente.logoUrl" [alt]="cliente.nome" />

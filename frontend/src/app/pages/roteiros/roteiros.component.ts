@@ -41,9 +41,9 @@ import { Roteiro, Tarefa, Cliente, RoteiroCena } from '../../core/models';
           </div>
 
           <!-- Grid de Roteiros (Exatamente como em 16756.jpg) -->
-          <div class="scripts-grid">
-            <div 
-              class="script-dark-card" 
+          <div class="scripts-grid stagger-grid">
+            <div
+              class="script-dark-card hover-lift"
               *ngFor="let r of roteirosFiltrados()"
             >
               <div class="script-card-header">

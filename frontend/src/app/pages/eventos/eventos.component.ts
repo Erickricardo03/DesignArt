@@ -41,7 +41,7 @@ import { Evento, FotoEvento } from '../../core/models';
           </div>
 
           <!-- Listagem dos Eventos -->
-          <div class="events-list-container">
+          <div class="events-list-container stagger-grid">
             <div class="card event-master-card" *ngFor="let evento of eventos()">
               <!-- Header do Evento (Página 6 do PDF) -->
               <div class="event-hero-grid">
@@ -103,8 +103,8 @@ import { Evento, FotoEvento } from '../../core/models';
                   </span>
                 </div>
 
-                <div class="protected-photos-grid">
-                  <div class="photo-card" *ngFor="let foto of evento.fotos">
+                <div class="protected-photos-grid stagger-grid">
+                  <div class="photo-card hover-lift" *ngFor="let foto of evento.fotos">
                     <div class="photo-viewer-wrapper">
                       <!-- Componente com marca d'água diagonal repetida e proteção anti-print -->
                       <app-watermark-viewer 

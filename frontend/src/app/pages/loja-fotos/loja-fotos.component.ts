@@ -85,8 +85,8 @@ import { SidebarComponent } from '../../shared/components/sidebar.component';
           <div class="albuns-section">
             <h2 class="section-title">Álbuns Publicados na Loja</h2>
             
-            <div class="albuns-grid">
-              <div class="album-card" *ngFor="let alb of albuns()">
+            <div class="albuns-grid stagger-grid">
+              <div class="album-card hover-lift" *ngFor="let alb of albuns()">
                 <!-- Preview com Marca D'Água Anti-Print -->
                 <div class="album-cover-wrap">
                   <img [src]="getAlbumCover(alb)" [alt]="alb.nome" />

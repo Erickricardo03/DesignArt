@@ -53,8 +53,8 @@ import { SidebarComponent } from '../../shared/components/sidebar.component';
               </div>
 
               <!-- Grid de Cards de Serviços -->
-              <div class="servicos-cards-grid">
-                <div class="servico-item-card" *ngFor="let s of servicosFiltrados()">
+              <div class="servicos-cards-grid stagger-grid">
+                <div class="servico-item-card hover-lift" *ngFor="let s of servicosFiltrados()">
                   <div class="servico-card-top">
                     <h3 class="servico-name">{{ s.nome }}</h3>
                     <span class="badge-ativo" [class.badge-inativo]="s.status === 'INATIVO'">

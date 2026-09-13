@@ -59,8 +59,8 @@ import { SidebarComponent } from '../../shared/components/sidebar.component';
                 </div>
               </div>
 
-              <div class="municipios-list">
-                <div class="municipio-item" *ngFor="let m of municipios()">
+              <div class="municipios-list stagger-grid">
+                <div class="municipio-item hover-lift" *ngFor="let m of municipios()">
                   <div class="muni-info">
                     <i class="bi bi-pin-map-fill text-purple"></i>
                     <span class="muni-nome">{{ m.nome }}</span>

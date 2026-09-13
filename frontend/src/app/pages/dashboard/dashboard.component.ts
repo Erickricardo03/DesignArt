@@ -5,11 +5,13 @@ import { SidebarComponent } from '../../shared/components/sidebar.component';
 import { HeaderComponent } from '../../shared/components/header.component';
 import { ApiService } from '../../core/services/api.service';
 import { DashboardStats, Tarefa } from '../../core/models';
+import { CountUpDirective } from '../../shared/directives/count-up.directive';
+import { RevealOnScrollDirective } from '../../shared/directives/reveal-on-scroll.directive';
 
 @Component({
   selector: 'app-dashboard',
   standalone: true,
-  imports: [CommonModule, RouterModule, SidebarComponent, HeaderComponent],
+  imports: [CommonModule, RouterModule, SidebarComponent, HeaderComponent, CountUpDirective, RevealOnScrollDirective],
   template: `
     <div class="app-container">
       <app-sidebar></app-sidebar>
@@ -33,10 +35,10 @@ import { DashboardStats, Tarefa } from '../../core/models';
               <span class="subtext">Tarefas próximas do vencimento e vencidas que exigem atenção</span>
             </div>
 
-            <div class="alerts-grid">
-              <div 
-                *ngFor="let aviso of stats()?.avisos" 
-                class="alert-card" 
+            <div class="alerts-grid stagger-grid">
+              <div
+                *ngFor="let aviso of stats()?.avisos"
+                class="alert-card"
                 [ngClass]="aviso.tipo === 'VENCIDA' ? 'alert-overdue' : 'alert-upcoming'"
               >
                 <div class="alert-icon">
@@ -58,10 +60,10 @@ import { DashboardStats, Tarefa } from '../../core/models';
           </div>
 
           <!-- Status das Tarefas - Badges Grandes (PDF Página 1) -->
-          <div class="status-summary-grid">
+          <div class="status-summary-grid stagger-grid">
             <div class="status-card bg-afazer" routerLink="/tarefas" [queryParams]="{status: 'A_FAZER'}">
               <div class="status-header">
-                <span class="status-number">{{ stats()?.aFazer || 0 }}</span>
+                <span class="status-number" [appCountUp]="stats()?.aFazer || 0"></span>
                 <i class="bi bi-hourglass-top"></i>
               </div>
               <div class="status-label">A FAZER</div>
@@ -69,7 +71,7 @@ import { DashboardStats, Tarefa } from '../../core/models';
 
             <div class="status-card bg-em-dev" routerLink="/tarefas" [queryParams]="{status: 'EM_DESENVOLVIMENTO'}">
               <div class="status-header">
-                <span class="status-number">{{ stats()?.emDesenvolvimento || 0 }}</span>
+                <span class="status-number" [appCountUp]="stats()?.emDesenvolvimento || 0"></span>
                 <i class="bi bi-code-slash"></i>
               </div>
               <div class="status-label">EM DESENVOLVIMENTO</div>
@@ -77,7 +79,7 @@ import { DashboardStats, Tarefa } from '../../core/models';
 
             <div class="status-card bg-em-revisao" routerLink="/tarefas" [queryParams]="{status: 'EM_REVISAO'}">
               <div class="status-header">
-                <span class="status-number">{{ stats()?.emRevisaoOuNaoHomologada || 0 }}</span>
+                <span class="status-number" [appCountUp]="stats()?.emRevisaoOuNaoHomologada || 0"></span>
                 <i class="bi bi-eye-fill"></i>
               </div>
               <div class="status-label">EM REVISÃO / NÃO HOMOLOGADA</div>
@@ -85,7 +87,7 @@ import { DashboardStats, Tarefa } from '../../core/models';
 
             <div class="status-card bg-atrasadas" routerLink="/tarefas" [queryParams]="{status: 'ATRASADA'}">
               <div class="status-header">
-                <span class="status-number">{{ stats()?.atrasadas || 0 }}</span>
+                <span class="status-number" [appCountUp]="stats()?.atrasadas || 0"></span>
                 <i class="bi bi-exclamation-octagon-fill"></i>
               </div>
               <div class="status-label">ATRASADAS</div>
@@ -93,7 +95,7 @@ import { DashboardStats, Tarefa } from '../../core/models';
 
             <div class="status-card bg-concluidas" routerLink="/tarefas" [queryParams]="{status: 'CONCLUIDA'}">
               <div class="status-header">
-                <span class="status-number">{{ stats()?.concluidas || 0 }}</span>
+                <span class="status-number" [appCountUp]="stats()?.concluidas || 0"></span>
                 <i class="bi bi-check2-circle"></i>
               </div>
               <div class="status-label">CONCLUÍDAS</div>
@@ -103,7 +105,7 @@ import { DashboardStats, Tarefa } from '../../core/models';
           <!-- Linha de Gráficos e Ranking (Páginas 3 e 4 do PDF) -->
           <div class="charts-ranking-row">
             <!-- Gráfico de Produção / Atendimentos por Mês (Página 3) -->
-            <div class="card chart-card">
+            <div class="card chart-card" appReveal>
               <div class="card-header-clean">
                 <div>
                   <span class="section-tag text-teal">PRODUÇÃO</span>
@@ -136,7 +138,7 @@ import { DashboardStats, Tarefa } from '../../core/models';
             </div>
 
             <!-- Ranking de Colaboradores (Página 4 do PDF) -->
-            <div class="card ranking-card">
+            <div class="card ranking-card" appReveal [appRevealDelay]="80">
               <div class="card-header-clean">
                 <div>
                   <span class="section-tag text-success">EQUIPE & DESEMPENHO</span>
@@ -174,7 +176,7 @@ import { DashboardStats, Tarefa } from '../../core/models';
           <div class="financial-section-row">
             <!-- Cards de Ganhos e Visitas -->
             <div class="finance-metrics-column">
-              <div class="card finance-metric-card">
+              <div class="card finance-metric-card" appReveal>
                 <div class="metric-icon-circle bg-green-light">
                   <i class="bi bi-currency-dollar text-success"></i>
                 </div>
@@ -186,7 +188,7 @@ import { DashboardStats, Tarefa } from '../../core/models';
                 </div>
               </div>
 
-              <div class="card finance-metric-card">
+              <div class="card finance-metric-card" appReveal [appRevealDelay]="60">
                 <div class="metric-icon-circle bg-yellow-light">
                   <i class="bi bi-clock text-warning"></i>
                 </div>
@@ -198,21 +200,21 @@ import { DashboardStats, Tarefa } from '../../core/models';
                 </div>
               </div>
 
-              <div class="card finance-metric-card">
+              <div class="card finance-metric-card" appReveal [appRevealDelay]="120">
                 <div class="metric-icon-circle bg-blue-light">
                   <i class="bi bi-eye-fill text-info"></i>
                 </div>
                 <div>
                   <span class="metric-title">Visitas na páginas</span>
                   <h2 class="metric-value">
-                    {{ stats()?.visitasNaPagina || 324 }}
+                    <span [appCountUp]="stats()?.visitasNaPagina || 324"></span>
                   </h2>
                 </div>
               </div>
             </div>
 
             <!-- Feed de Últimas Vendas (Mock Página 5) -->
-            <div class="card recent-sales-card">
+            <div class="card recent-sales-card" appReveal [appRevealDelay]="80">
               <div class="card-header-clean">
                 <h3>Últimas vendas</h3>
                 <a routerLink="/financeiro" class="btn btn-ghost btn-sm text-primary">

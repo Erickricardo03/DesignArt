@@ -143,8 +143,8 @@ import { SidebarComponent } from '../../shared/components/sidebar.component';
           <!-- Galeria de Arquivos Finais da Demanda -->
           <div class="arquivos-finais-section">
             <h4 class="section-title-sm">Arquivos Finais Entregues ({{ (projetoSelecionado()?.arquivosFinais?.length || 0) }} arquivos)</h4>
-            <div class="arquivos-grid" *ngIf="(projetoSelecionado()?.arquivosFinais?.length || 0) > 0; else semArquivos">
-              <div class="arquivo-card" *ngFor="let arq of projetoSelecionado()?.arquivosFinais">
+            <div class="arquivos-grid stagger-grid" *ngIf="(projetoSelecionado()?.arquivosFinais?.length || 0) > 0; else semArquivos">
+              <div class="arquivo-card hover-lift" *ngFor="let arq of projetoSelecionado()?.arquivosFinais">
                 <div class="arq-preview">
                   <img *ngIf="arq.tipo !== 'VIDEO'" [src]="arq.urlOuBase64" [alt]="arq.nome" />
                   <div *ngIf="arq.tipo === 'VIDEO'" class="video-preview-icon">

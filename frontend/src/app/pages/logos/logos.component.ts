@@ -42,7 +42,7 @@ import { LogoCliente } from '../../core/models';
           </div>
 
           <!-- Grid de Logos -->
-          <div class="logos-grid">
+          <div class="logos-grid stagger-grid">
             <div class="card logo-card" *ngFor="let logo of logos()">
               <!-- Área de Pré-visualização com Checkerboard (fundo transparente para logos PNG/SVG) -->
               <div class="logo-preview-box">

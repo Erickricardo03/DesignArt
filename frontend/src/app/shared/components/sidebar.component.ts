@@ -266,11 +266,17 @@ import { NavigationService } from '../../core/services/navigation.service';
 
     .nav-item i {
       font-size: 1.1rem;
+      transition: transform 0.2s ease;
     }
 
     .nav-item:hover {
       background: rgba(124, 58, 237, 0.06);
       color: var(--text-primary);
+      transform: translateX(3px);
+    }
+
+    .nav-item:hover i {
+      transform: scale(1.15);
     }
 
     .nav-item.active {
@@ -278,6 +284,12 @@ import { NavigationService } from '../../core/services/navigation.service';
       color: #ffffff !important;
       font-weight: 800;
       box-shadow: 0 4px 14px rgba(124, 58, 237, 0.35);
+      animation: navActivate 0.35s ease;
+    }
+
+    @keyframes navActivate {
+      from { transform: scale(0.97); }
+      to { transform: scale(1); }
     }
 
     .logout-nav-btn {
@@ -332,10 +344,15 @@ import { NavigationService } from '../../core/services/navigation.service';
 
     .mobile-nav-btn i {
       font-size: 1.15rem;
+      transition: transform 0.2s ease;
     }
 
     .mobile-nav-btn.active {
       color: var(--primary);
+    }
+
+    .mobile-nav-btn.active i {
+      transform: translateY(-3px) scale(1.1);
     }
 
     @media (max-width: 900px) {

@@ -23,7 +23,7 @@ import { VendaFoto, Despesa, FluxoCaixa, Fatura, Cliente, SaudeFinanceira } from
 
         <div class="page-body">
           <!-- PAINEL SUPERIOR: SAÚDE FINANCEIRA & MARGEM OPERACIONAL (16754.jpg) -->
-          <div class="finance-top-cards-grid">
+          <div class="finance-top-cards-grid stagger-grid">
             <!-- Card Margem Operacional (Exatamente como em 16754.jpg) -->
             <div class="card saude-financeira-card">
               <span class="section-tag-purple">SAÚDE FINANCEIRA</span>
@@ -57,7 +57,7 @@ import { VendaFoto, Despesa, FluxoCaixa, Fatura, Cliente, SaudeFinanceira } from
               <span class="section-tag-purple">RESUMO DO MÊS</span>
               <h2 class="card-main-title">Entradas & Previsões</h2>
 
-              <div class="resumo-metrics-grid">
+              <div class="resumo-metrics-grid stagger-grid">
                 <div class="resumo-box green-bg">
                   <span class="resumo-box-lbl">Total Recebido (Mês)</span>
                   <h3 class="resumo-box-val text-green">R$ {{ (saude()?.totalRecebidoMes || 1000).toFixed(2).replace('.', ',') }}</h3>
