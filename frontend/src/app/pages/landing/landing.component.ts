@@ -211,23 +211,25 @@ import { RevealOnScrollDirective } from '../../shared/directives/reveal-on-scrol
         </div>
       </section>
 
-      <!-- SEÇÃO CLIENTES (Exatamente como em 16703.jpg) -->
-      <section class="section-container">
+      <!-- SEÇÃO CLIENTES: esteira animada com as marcas reais atendidas -->
+      <section class="section-container clients-section">
         <span class="section-badge-purple" appReveal>CLIENTES</span>
         <h2 class="section-title-large" appReveal [appRevealDelay]="60">Marcas que confiam no nosso trabalho.</h2>
+      </section>
 
-        <div class="clients-logos-grid">
-          <div class="client-logo-card" appReveal>
-            <span class="client-brand-text font-bold">SR. JUNIOR</span>
+      <section class="clients-marquee-wrap" appReveal [appRevealDelay]="100">
+        <div class="marquee-fade fade-left"></div>
+        <div class="marquee-fade fade-right"></div>
+        <div class="marquee-track">
+          <div class="marquee-group">
+            <div class="client-logo-card" *ngFor="let cliente of clientLogos">
+              <img [src]="cliente.src" [alt]="cliente.name" loading="lazy" />
+            </div>
           </div>
-          <div class="client-logo-card" appReveal [appRevealDelay]="60">
-            <span class="client-brand-text font-bold">VivaMais</span>
-          </div>
-          <div class="client-logo-card" appReveal [appRevealDelay]="120">
-            <span class="client-brand-text font-bold">Ateliê da Ysa</span>
-          </div>
-          <div class="client-logo-card" appReveal [appRevealDelay]="180">
-            <span class="client-brand-text font-bold">ACADEMIA TITANIUM</span>
+          <div class="marquee-group" aria-hidden="true">
+            <div class="client-logo-card" *ngFor="let cliente of clientLogos">
+              <img [src]="cliente.src" [alt]="cliente.name" loading="lazy" />
+            </div>
           </div>
         </div>
       </section>
@@ -652,32 +654,85 @@ import { RevealOnScrollDirective } from '../../shared/directives/reveal-on-scrol
       color: var(--text-secondary);
     }
 
-    /* Clientes 16703.jpg */
-    .clients-logos-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    /* Clientes: esteira animada */
+    .clients-section {
+      padding-bottom: 1.5rem;
+    }
+    .clients-marquee-wrap {
+      position: relative;
+      width: 100%;
+      overflow: hidden;
+      padding: 0.5rem 0 3rem 0;
+    }
+    .marquee-fade {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      width: 90px;
+      max-width: 15%;
+      z-index: 2;
+      pointer-events: none;
+    }
+    .fade-left {
+      left: 0;
+      background: linear-gradient(90deg, var(--bg-primary), transparent);
+    }
+    .fade-right {
+      right: 0;
+      background: linear-gradient(270deg, var(--bg-primary), transparent);
+    }
+    .marquee-track {
+      display: flex;
+      width: max-content;
+      animation: marqueeSlide 60s linear infinite;
+    }
+    .marquee-track:hover {
+      animation-play-state: paused;
+    }
+    .marquee-group {
+      display: flex;
+      align-items: center;
       gap: 1.25rem;
+      padding-right: 1.25rem;
+    }
+    @keyframes marqueeSlide {
+      from { transform: translateX(0); }
+      to { transform: translateX(-50%); }
     }
     .client-logo-card {
+      flex: 0 0 auto;
+      width: 260px;
+      height: 150px;
       background: var(--card-bg);
       border: 1px solid var(--border-color);
-      border-radius: 14px;
-      padding: 2rem;
+      border-radius: 16px;
+      padding: 1.75rem;
       display: flex;
       align-items: center;
       justify-content: center;
       box-shadow: 0 4px 12px rgba(0,0,0,0.02);
-      transition: transform 0.25s ease, filter 0.25s ease;
-      filter: grayscale(0.4);
+      transition: transform 0.25s ease, filter 0.25s ease, box-shadow 0.25s ease;
+      filter: grayscale(0.5);
     }
     .client-logo-card:hover {
-      transform: translateY(-3px) scale(1.03);
+      transform: translateY(-3px) scale(1.05);
       filter: grayscale(0);
+      box-shadow: 0 10px 22px rgba(124, 58, 237, 0.12);
     }
-    .client-brand-text {
-      font-size: 1.05rem;
-      letter-spacing: 0.05em;
-      color: var(--text-primary);
+    .client-logo-card img {
+      max-width: 100%;
+      max-height: 100%;
+      object-fit: contain;
+    }
+    @media (max-width: 576px) {
+      .client-logo-card {
+        width: 190px;
+        height: 110px;
+        padding: 1.15rem;
+      }
+      .marquee-fade {
+        width: 40px;
+      }
     }
 
     /* Footer */
@@ -742,4 +797,25 @@ import { RevealOnScrollDirective } from '../../shared/directives/reveal-on-scrol
 })
 export class LandingComponent {
   themeService = inject(ThemeService);
+
+  readonly clientLogos = [
+    { src: '/clients/panificacao-pf.png', name: 'Panificação P&F' },
+    { src: '/clients/lucas-companheiro.png', name: 'Lucas Companheiro' },
+    { src: '/clients/clinica-farmacia.png', name: 'Clínica & Farmácia' },
+    { src: '/clients/jm-moda-fitness.png', name: 'JM Moda Fitness' },
+    { src: '/clients/supermercado-o-favorito.png', name: 'Supermercado O Favorito' },
+    { src: '/clients/sr-junior.png', name: 'Sr. Junior Moda Masculina' },
+    { src: '/clients/ki-delicia.png', name: 'Ki-Delícia Lanchonete e Pizzaria' },
+    { src: '/clients/stilosa-modas.png', name: 'Stilosa Modas' },
+    { src: '/clients/cicero-companheiro.png', name: 'Vereador Cícero Companheiro' },
+    { src: '/clients/kf-monograma.png', name: 'KF' },
+    { src: '/clients/secretaria-saude-joaquim-gomes.png', name: 'Secretaria de Saúde de Joaquim Gomes' },
+    { src: '/clients/fernanda-kelly.png', name: 'Fernanda Kelly' },
+    { src: '/clients/af-suplementos.png', name: 'AF Suplementos' },
+    { src: '/clients/marcelino-imports.png', name: 'Marcelino Imports' },
+    { src: '/clients/academia-titanium.png', name: 'Academia Titanium' },
+    { src: '/clients/vivamais.png', name: 'VivaMais Mercado Natural' },
+    { src: '/clients/dg-serralheria.png', name: 'DG Serralheria' },
+    { src: '/clients/sao-joao-supermercado.png', name: 'Novo São João Supermercado' },
+  ];
 }
