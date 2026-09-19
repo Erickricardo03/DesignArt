@@ -33,7 +33,9 @@ class TenantStructureGuardTest {
             // PLANO DE CONTROLE (Fase 4.4.1): dados comerciais/administrativos POR tenant, mas administrados SÓ pelo
             // SUPER_ADMIN (/api/admin/**) e resolvidos pelo EntitlementService. NÃO são dados de negócio do tenant.
             // O ControlPlaneStructureGuardTest garante que só esses pacotes acessam seus repositories.
-            "Subscription", "TenantFeatureOverride", "TenantBranding"
+            "Subscription", "TenantFeatureOverride", "TenantBranding",
+            // Financeiro SaaS (Fase 4.4.2): também plano de controle (SUPER_ADMIN); guardado pelo ControlPlaneStructureGuardTest.
+            "Invoice", "InvoicePayment"
     );
 
     @Autowired EntityManager entityManager;

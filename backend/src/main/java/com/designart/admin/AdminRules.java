@@ -77,6 +77,51 @@ public final class AdminRules {
         return key != null && LOGO_KEY.matcher(key).matches() && !key.contains("..") && !key.contains("//");
     }
 
+    private static final Pattern EXTERNAL_REF = Pattern.compile("^[A-Za-z0-9][A-Za-z0-9._:/-]{0,99}$");
+    private static final java.math.BigDecimal MAX_AMOUNT = new java.math.BigDecimal("9999999999.99");
+
+    /** Valor monetário: positivo (zero NÃO é permitido), no máximo 2 casas decimais, teto NUMERIC(12,2). */
+    public static java.math.BigDecimal money(java.math.BigDecimal raw) {
+        if (raw == null || raw.signum() <= 0 || raw.stripTrailingZeros().scale() > 2 || raw.compareTo(MAX_AMOUNT) > 0) {
+            throw new InvalidRequestException("Valor inválido. Informe um valor maior que zero com até 2 casas decimais.");
+        }
+        return raw.setScale(2, java.math.RoundingMode.UNNECESSARY);
+    }
+
+    /** Moeda suportada nesta etapa: somente BRL (o modelo já carrega a moeda para evolução futura). */
+    public static String currency(String raw) {
+        if (raw == null || !"BRL".equals(raw.trim())) {
+            throw new InvalidRequestException("Moeda não suportada. Nesta etapa apenas BRL.");
+        }
+        return "BRL";
+    }
+
+    public static int billingDay(int day) {
+        if (day < 1 || day > 28) {
+            throw new InvalidRequestException("O dia de vencimento deve estar entre 1 e 28.");
+        }
+        return day;
+    }
+
+    public static int graceDays(int days) {
+        if (days < 0 || days > 90) {
+            throw new InvalidRequestException("Os dias de carência devem estar entre 0 e 90.");
+        }
+        return days;
+    }
+
+    /** Referência externa OPACA de um pagamento (ex.: id do comprovante). Nulo/vazio = ausente. */
+    public static String externalRef(String raw) {
+        if (raw == null || raw.isBlank()) {
+            return null;
+        }
+        String r = raw.trim();
+        if (!EXTERNAL_REF.matcher(r).matches()) {
+            throw new InvalidRequestException("Referência externa inválida (letras, números e . _ : / -, até 100 caracteres).");
+        }
+        return r;
+    }
+
     private static boolean hasControl(String s) {
         return s.chars().anyMatch(Character::isISOControl);
     }

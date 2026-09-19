@@ -6,5 +6,7 @@ public enum AuditEntityType {
     TENANT,
     PLAN,
     FEATURE,
-    SUBSCRIPTION
+    SUBSCRIPTION,
+    INVOICE,
+    PAYMENT
 }

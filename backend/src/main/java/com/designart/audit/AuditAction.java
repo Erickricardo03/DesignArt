@@ -39,5 +39,11 @@ public enum AuditAction {
     SUBSCRIPTION_CREATED,
     SUBSCRIPTION_CHANGED,
     TENANT_FEATURE_OVERRIDE_CHANGED,
-    TENANT_BRANDING_CHANGED
+    TENANT_BRANDING_CHANGED,
+    // --- Financeiro SaaS (Fase 4.4.2). Nunca carregam valores monetários, apenas ids/estados. ---
+    INVOICE_CREATED,
+    INVOICE_MARKED_PAID,
+    INVOICE_CANCELED,
+    PAYMENT_RECORDED,
+    TENANT_SUSPENDED_NON_PAYMENT
 }

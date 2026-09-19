@@ -40,6 +40,14 @@ public class Tenant {
     @Column(unique = true)
     private String customDomain;
 
+    /** Só preenchido enquanto status = SUSPENSO (CHECK no banco). */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "suspension_reason", length = 20)
+    private SuspensionReason suspensionReason;
+
+    @Column(name = "suspended_at")
+    private LocalDateTime suspendedAt;
+
     @Builder.Default
     private LocalDateTime createdAt = LocalDateTime.now();
 

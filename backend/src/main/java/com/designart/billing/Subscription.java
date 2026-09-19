@@ -48,6 +48,25 @@ public class Subscription {
     @Column(name = "canceled_at")
     private LocalDateTime canceledAt;
 
+    /** Valor MENSAL contratado por ESTE cliente (independe de qualquer preço de catálogo). Nulo = não cobrável. */
+    @Column(name = "contracted_amount", precision = 12, scale = 2)
+    private java.math.BigDecimal contractedAmount;
+
+    @Column(nullable = false, length = 3)
+    private String currency = "BRL";
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "billing_interval", nullable = false, length = 10)
+    private BillingInterval billingInterval = BillingInterval.MONTHLY;
+
+    /** Dia do vencimento mensal (1..28). */
+    @Column(name = "billing_day", nullable = false)
+    private int billingDay = 10;
+
+    /** Dias de carência após o vencimento (copiados para a cobrança na emissão). */
+    @Column(name = "grace_days", nullable = false)
+    private int graceDays = 5;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 

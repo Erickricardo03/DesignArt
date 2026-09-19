@@ -9,6 +9,7 @@ import com.designart.exception.ConflictException;
 import com.designart.exception.InvalidRequestException;
 import com.designart.exception.ResourceNotFoundException;
 import com.designart.model.Tenant;
+import com.designart.model.SuspensionReason;
 import com.designart.model.TenantStatus;
 import com.designart.ratelimit.RateLimitPolicy;
 import com.designart.ratelimit.RateLimitService;
@@ -52,6 +53,8 @@ public class AdminTenantService {
     private final AuditService auditService;
     private final AuditActors auditActors;
     private final RateLimitService rateLimit;
+    private final InvoiceRepository invoiceRepository;
+    private final BillingService billingService;
     private final PlatformTransactionManager transactionManager;
     private final Clock clock;
 
@@ -142,7 +145,26 @@ public class AdminTenantService {
         if (atual != TenantStatus.ATIVO) {
             throw new ConflictException("Somente uma empresa ativa pode ser suspensa.");
         }
-        return mudarStatus(t, atual, TenantStatus.SUSPENSO, AuditAction.TENANT_SUSPENDED);
+        return mudarStatus(t, atual, TenantStatus.SUSPENSO, SuspensionReason.MANUAL, AuditAction.TENANT_SUSPENDED);
+    }
+
+    /**
+     * Suspensão por INADIMPLÊNCIA (decisão manual do SUPER_ADMIN). Exige ao menos uma cobrança vencida
+     * (não paga). Muda SOMENTE Tenant.status/motivo: assinatura, cobranças, dados, entitlements e branding
+     * permanecem intactos; o acesso cai porque AccessPolicy reavalia o tenant a cada requisição.
+     */
+    @Transactional
+    public TenantDto suspendForNonPayment(Long id) {
+        Tenant t = find(id);
+        TenantStatus atual = TenantStatus.valueOf(t.getStatus());
+        if (atual != TenantStatus.ATIVO) {
+            throw new ConflictException("Somente uma empresa ativa pode ser suspensa.");
+        }
+        billingService.refreshOverdue();
+        if (invoiceRepository.countOverdue(id) == 0) {
+            throw new ConflictException("A empresa não possui cobrança vencida: use a suspensão manual, se necessário.");
+        }
+        return mudarStatus(t, atual, TenantStatus.SUSPENSO, SuspensionReason.NON_PAYMENT, AuditAction.TENANT_SUSPENDED_NON_PAYMENT);
     }
 
     @Transactional
@@ -152,7 +174,7 @@ public class AdminTenantService {
         if (atual == TenantStatus.ATIVO) {
             throw new ConflictException("A empresa já está ativa.");
         }
-        return mudarStatus(t, atual, TenantStatus.ATIVO, AuditAction.TENANT_REACTIVATED);
+        return mudarStatus(t, atual, TenantStatus.ATIVO, null, AuditAction.TENANT_REACTIVATED);
     }
 
     /** Reenvia o convite pendente de um usuário DESTA empresa (reutiliza o mecanismo da Fase 4.3). */
@@ -165,13 +187,18 @@ public class AdminTenantService {
      * Altera SOMENTE Tenant.status (situação operacional). Não toca na assinatura, não apaga dados; o acesso
      * dos usuários é bloqueado porque AccessPolicy reavalia o tenant a cada requisição e no login.
      */
-    private TenantDto mudarStatus(Tenant t, TenantStatus de, TenantStatus para, AuditAction acao) {
+    private TenantDto mudarStatus(Tenant t, TenantStatus de, TenantStatus para, SuspensionReason motivo, AuditAction acao) {
+        SuspensionReason motivoAnterior = t.getSuspensionReason();
+        LocalDateTime agora = LocalDateTime.now(clock);
         t.setStatus(para.name());
-        t.setUpdatedAt(LocalDateTime.now(clock));
+        t.setSuspensionReason(para == TenantStatus.SUSPENSO ? motivo : null);
+        t.setSuspendedAt(para == TenantStatus.SUSPENSO ? agora : null);
+        t.setUpdatedAt(agora);
         tenantRepository.saveAndFlush(t);
         auditService.success(acao, auditActors.current(),
                 AuditTarget.entity(t.getId(), AuditEntityType.TENANT, t.getId()),
-                AuditMetadata.builder().tenantStatusChange(de, para).build());
+                AuditMetadata.builder().tenantStatusChange(de, para)
+                        .suspensionReason(para == TenantStatus.SUSPENSO ? motivo : motivoAnterior).build());
         return toDto(t);
     }
 

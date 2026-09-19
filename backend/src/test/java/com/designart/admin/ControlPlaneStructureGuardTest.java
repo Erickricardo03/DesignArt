@@ -24,7 +24,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 class ControlPlaneStructureGuardTest {
 
     private static final Set<Class<?>> RESTRITOS = Set.of(
-            SubscriptionRepository.class, TenantFeatureOverrideRepository.class, TenantBrandingRepository.class);
+            SubscriptionRepository.class, TenantFeatureOverrideRepository.class, TenantBrandingRepository.class,
+            InvoiceRepository.class, InvoicePaymentRepository.class);
     private static final List<String> PERMITIDOS = List.of(
             "com.designart.admin.", "com.designart.entitlement.", "com.designart.billing.");
 

@@ -1,7 +1,10 @@
 package com.designart.audit;
 
 import com.designart.security.Permission;
+import com.designart.billing.InvoiceStatus;
 import com.designart.billing.OverrideEffect;
+import com.designart.billing.PaymentMethod;
+import com.designart.model.SuspensionReason;
 import com.designart.billing.SubscriptionStatus;
 import com.designart.model.TenantStatus;
 import com.designart.security.Role;
@@ -131,6 +134,23 @@ public final class AuditMetadata {
         /** {@code null} = override removido. */
         public Builder overrideEffect(OverrideEffect effect) {
             fragments.put("overrideEffect", quote(effect));
+            return this;
+        }
+
+        public Builder invoiceStatusChange(InvoiceStatus from, InvoiceStatus to) {
+            fragments.put("invoiceStatusFrom", quote(from));
+            fragments.put("invoiceStatusTo", quote(to));
+            return this;
+        }
+
+        public Builder paymentMethod(PaymentMethod method) {
+            fragments.put("paymentMethod", quote(method));
+            return this;
+        }
+
+        /** Motivo da suspensão (nulo = não estava suspenso). */
+        public Builder suspensionReason(SuspensionReason reason) {
+            fragments.put("suspensionReason", quote(reason));
             return this;
         }
 

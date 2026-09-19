@@ -1,5 +1,9 @@
 package com.designart.admin.dto;
 
+import com.designart.billing.*;
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.util.Map;
 import com.designart.billing.FeatureKind;
 import com.designart.billing.OverrideEffect;
 import com.designart.billing.SubscriptionStatus;
@@ -78,5 +82,59 @@ public final class AdminDtos {
 
     public record BrandingDto(Long tenantId, String primaryColor, String secondaryColor, String accentColor,
                               boolean logoConfigured, boolean tenantMayEditColors, boolean tenantMayEditLogo) {
+    }
+
+    // ---- financeiro (Fase 4.4.2). Valores monetários SEMPRE BigDecimal (2 casas), nunca double. ----
+    public record PageDto<T>(List<T> items, int page, int size, long total) {
+    }
+
+    public record InvoiceDto(Long id, Long tenantId, String tenantName, Long subscriptionId, LocalDate referencePeriod,
+                             BigDecimal amount, String currency, LocalDate dueDate, LocalDate graceEndsOn,
+                             InvoiceStatus status, CollectionPhase phase, LocalDateTime paidAt,
+                             LocalDateTime canceledAt, LocalDateTime createdAt) {
+    }
+
+    /** {@code referencePeriod} nulo = mês corrente (UTC). O tenant vem SEMPRE do path. */
+    public record GenerateInvoiceRequest(LocalDate referencePeriod) {
+    }
+
+    public record InvoiceGenerationDto(InvoiceDto invoice, boolean created) {
+    }
+
+    /** Pagamento manual integral. Sem tenant/valor livre: o valor deve coincidir com o da cobrança. */
+    public record PayInvoiceRequest(BigDecimal amount, LocalDateTime occurredAt, String externalRef) {
+    }
+
+    public record PaymentDto(Long id, Long invoiceId, Long tenantId, PaymentKind kind, PaymentMethod method,
+                             BigDecimal amount, String currency, LocalDateTime occurredAt,
+                             Long registeredByUserId, String externalRef) {
+    }
+
+    /** Termos contratados. Campos nulos = manter o valor atual (atualização parcial). */
+    public record BillingTermsRequest(BigDecimal contractedAmount, String currency, Integer billingDay, Integer graceDays) {
+    }
+
+    public record BillingTermsDto(Long tenantId, String planCode, SubscriptionStatus subscriptionStatus,
+                                  BigDecimal contractedAmount, String currency, BillingInterval billingInterval,
+                                  int billingDay, int graceDays) {
+    }
+
+    public record TenantBillingDto(Long tenantId, String tenantName, String tenantStatus, String suspensionReason,
+                                   LocalDateTime suspendedAt, BillingTermsDto terms,
+                                   long invoicesOpen, long invoicesOverdue, long invoicesBeyondGrace, long invoicesPaid,
+                                   Map<String, BigDecimal> outstandingAmount, Map<String, BigDecimal> overdueAmount,
+                                   LocalDateTime lastPaymentAt, List<InvoiceDto> recentInvoices) {
+    }
+
+    public record BillingDashboardDto(LocalDate today, LocalDate periodFrom, LocalDate periodTo, int upcomingWindowDays,
+                                      long tenantsActive, long tenantsSuspended, long tenantsSuspendedNonPayment,
+                                      long subscriptionsActive, long subscriptionsPastDue, long subscriptionsCanceled,
+                                      long invoicesOpen, long invoicesOverdue, long invoicesUpcoming,
+                                      long invoicesInGrace, long invoicesBeyondGrace, long invoicesPaid,
+                                      Map<String, BigDecimal> receivedInPeriod, Map<String, BigDecimal> pendingAmount,
+                                      Map<String, BigDecimal> overdueAmount, Map<String, BigDecimal> upcomingAmount) {
+    }
+
+    public record RefreshResultDto(int invoicesMarkedOverdue) {
     }
 }

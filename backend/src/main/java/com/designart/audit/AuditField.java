@@ -12,5 +12,9 @@ public enum AuditField {
     ACTIVE,
     PRIMARY_COLOR,
     SECONDARY_COLOR,
-    ACCENT_COLOR
+    ACCENT_COLOR,
+    CONTRACTED_AMOUNT,
+    CURRENCY,
+    BILLING_DAY,
+    GRACE_DAYS
 }

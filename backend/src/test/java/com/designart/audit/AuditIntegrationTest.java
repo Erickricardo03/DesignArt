@@ -458,7 +458,9 @@ class AuditIntegrationTest extends IntegrationTestBase {
                 "permissionsAdded", "permissionsRemoved", "fields", "reasons",
                 // Control Center (4.4.1): só enums, booleano e uma contagem inteira
                 "tenantStatusFrom", "tenantStatusTo", "subscriptionStatusFrom", "subscriptionStatusTo",
-                "planChanged", "overrideEffect", "count");
+                "planChanged", "overrideEffect", "count",
+                // Financeiro (4.4.2): só enums do sistema (estado da cobrança, meio de pagamento, motivo de suspensão)
+                "invoiceStatusFrom", "invoiceStatusTo", "paymentMethod", "suspensionReason");
         int verificados = 0;
         for (AuditEvent e : auditRepository.findAllByOrderByIdAsc()) {
             if (e.getMetadata() == null) {
