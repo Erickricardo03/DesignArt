@@ -72,16 +72,16 @@ class AccessControlIntegrationTest {
         @Test
         void autenticadoRetornaExclusivamenteOUsuarioReal() throws Exception {
             Tenant t = novoTenant("ATIVO");
-            criarUsuario("me.real", "COLABORADOR", t.getId(), true);
-            criarUsuario("outro.user", "ADMIN", t.getId(), true);
+            criarUsuario("me.real", com.designart.security.Role.USER, t.getId(), true);
+            criarUsuario("outro.user", com.designart.security.Role.TENANT_ADMIN, t.getId(), true);
             String token = login("me.real");
 
             MvcResult r = mvc.perform(get("/api/auth/me").header("Authorization", "Bearer " + token)).andReturn();
             assertThat(r.getResponse().getStatus()).isEqualTo(200);
             JsonNode u = json.readTree(r.getResponse().getContentAsString(java.nio.charset.StandardCharsets.UTF_8));
-            assertThat(u.get("username").asText()).isEqualTo("me.real");
-            assertThat(u.get("role").asText()).isEqualTo("COLABORADOR");
-            assertThat(u.get("id").asLong()).isEqualTo(userRepository.findByUsername("me.real").orElseThrow().getId());
+            assertThat(u.get("email").asText()).isEqualTo("me.real@teste.local");
+            assertThat(u.get("role").asText()).isEqualTo("USER");
+            assertThat(u.get("id").asLong()).isEqualTo(userRepository.findByEmail("me.real@teste.local").orElseThrow().getId());
         }
     }
 
@@ -94,14 +94,14 @@ class AccessControlIntegrationTest {
         @Test
         void usuarioAtivoConsegueLoginEAcessa() throws Exception {
             Tenant t = novoTenant("ATIVO");
-            criarUsuario("ativo.ok", "ADMIN", t.getId(), true);
+            criarUsuario("ativo.ok", com.designart.security.Role.TENANT_ADMIN, t.getId(), true);
             assertThat(status(get("/api/clientes"), login("ativo.ok"))).isEqualTo(200);
         }
 
         @Test
         void usuarioInativoNaoConsegueLogin() throws Exception {
             Tenant t = novoTenant("ATIVO");
-            criarUsuario("inativo.login", "ADMIN", t.getId(), false);
+            criarUsuario("inativo.login", com.designart.security.Role.TENANT_ADMIN, t.getId(), false);
             MvcResult r = tentarLogin("inativo.login");
             assertThat(r.getResponse().getStatus()).isEqualTo(401);
             // Mesma resposta genérica de "senha errada": não revela que a conta existe/está inativa.
@@ -112,12 +112,12 @@ class AccessControlIntegrationTest {
         @Test
         void jwtEmitidoAntesDaDesativacaoDeixaDeFuncionar() throws Exception {
             Tenant t = novoTenant("ATIVO");
-            criarUsuario("desativado.depois", "ADMIN", t.getId(), true);
+            criarUsuario("desativado.depois", com.designart.security.Role.TENANT_ADMIN, t.getId(), true);
             String token = login("desativado.depois");
             assertThat(status(get("/api/clientes"), token)).isEqualTo(200);
             assertThat(status(get("/api/auth/me"), token)).isEqualTo(200);
 
-            User u = userRepository.findByUsername("desativado.depois").orElseThrow();
+            User u = userRepository.findByEmail("desativado.depois@teste.local").orElseThrow();
             u.setAtivo(false);
             userRepository.save(u);
 
@@ -136,7 +136,7 @@ class AccessControlIntegrationTest {
         @Test
         void tenantAtivoPermiteAcesso() throws Exception {
             Tenant t = novoTenant("ATIVO");
-            criarUsuario("tenant.ativo", "ADMIN", t.getId(), true);
+            criarUsuario("tenant.ativo", com.designart.security.Role.TENANT_ADMIN, t.getId(), true);
             assertThat(status(get("/api/clientes"), login("tenant.ativo"))).isEqualTo(200);
         }
 
@@ -144,7 +144,7 @@ class AccessControlIntegrationTest {
         @ValueSource(strings = {"SUSPENSO", "INATIVO"})
         void tenantNaoAtivoNaoPermiteLogin(String statusTenant) throws Exception {
             Tenant t = novoTenant(statusTenant);
-            criarUsuario("login." + statusTenant.toLowerCase(), "ADMIN", t.getId(), true);
+            criarUsuario("login." + statusTenant.toLowerCase(), com.designart.security.Role.TENANT_ADMIN, t.getId(), true);
             MvcResult r = tentarLogin("login." + statusTenant.toLowerCase());
             assertThat(r.getResponse().getStatus()).isEqualTo(401);
             assertThat(r.getResponse().getContentAsString(java.nio.charset.StandardCharsets.UTF_8)).contains("Usuário ou senha inválidos.")
@@ -156,7 +156,7 @@ class AccessControlIntegrationTest {
         void jwtAntigoPerdeAcessoQuandoTenantEDesativado(String novoStatus) throws Exception {
             Tenant t = novoTenant("ATIVO");
             String username = "jwt.antigo." + novoStatus.toLowerCase();
-            criarUsuario(username, "ADMIN", t.getId(), true);
+            criarUsuario(username, com.designart.security.Role.TENANT_ADMIN, t.getId(), true);
             String token = login(username);
             assertThat(status(get("/api/clientes"), token)).isEqualTo(200);
 
@@ -177,8 +177,8 @@ class AccessControlIntegrationTest {
         void suspensaoAfetaSoOTenantSuspenso() throws Exception {
             Tenant suspenso = novoTenant("ATIVO");
             Tenant vizinho = novoTenant("ATIVO");
-            criarUsuario("susp.a", "ADMIN", suspenso.getId(), true);
-            criarUsuario("susp.b", "ADMIN", vizinho.getId(), true);
+            criarUsuario("susp.a", com.designart.security.Role.TENANT_ADMIN, suspenso.getId(), true);
+            criarUsuario("susp.b", com.designart.security.Role.TENANT_ADMIN, vizinho.getId(), true);
             String tokenA = login("susp.a");
             String tokenB = login("susp.b");
 
@@ -194,7 +194,7 @@ class AccessControlIntegrationTest {
             // Duas camadas de defesa: no PostgreSQL a FK users.tenant_id -> tenants(id) já impede
             // criar o usuário; sem FK (H2 de teste) a AccessPolicy nega o login. Em ambos, falha fechado.
             try {
-                criarUsuario("tenant.fantasma", "ADMIN", 987654321L, true);
+                criarUsuario("tenant.fantasma", com.designart.security.Role.TENANT_ADMIN, 987654321L, true);
             } catch (org.springframework.dao.DataIntegrityViolationException fkDoBanco) {
                 return;
             }
@@ -215,7 +215,7 @@ class AccessControlIntegrationTest {
         @Test
         void tenantSemDadosRecebeSomenteZerosEListasVazias() throws Exception {
             Tenant t = novoTenant("ATIVO");
-            criarUsuario("vazio.tenant", "ADMIN", t.getId(), true);
+            criarUsuario("vazio.tenant", com.designart.security.Role.TENANT_ADMIN, t.getId(), true);
             String token = login("vazio.tenant");
 
             String corpoStats = corpoTexto(get("/api/dashboard/stats"), token);
@@ -262,8 +262,8 @@ class AccessControlIntegrationTest {
         void metricasSaoCalculadasApenasComDadosReaisDoTenant() throws Exception {
             Tenant t = novoTenant("ATIVO");
             Tenant outro = novoTenant("ATIVO");
-            criarUsuario("real.tenant", "ADMIN", t.getId(), true);
-            criarUsuario("real.outro", "ADMIN", outro.getId(), true);
+            criarUsuario("real.tenant", com.designart.security.Role.TENANT_ADMIN, t.getId(), true);
+            criarUsuario("real.outro", com.designart.security.Role.TENANT_ADMIN, outro.getId(), true);
             String token = login("real.tenant");
             String tokenOutro = login("real.outro");
 
@@ -303,14 +303,14 @@ class AccessControlIntegrationTest {
                 .slug("acesso-teste-" + n).status(status).build());
     }
 
-    private void criarUsuario(String username, String role, Long tenantId, boolean ativo) {
-        userRepository.save(User.builder().username(username).password(passwordEncoder.encode(SENHA))
+    private void criarUsuario(String username, com.designart.security.Role role, Long tenantId, boolean ativo) {
+        userRepository.save(User.builder().email(username + "@teste.local").password(passwordEncoder.encode(SENHA))
                 .nomeCompleto(username).role(role).ativo(ativo).tenantId(tenantId).build());
     }
 
     private MvcResult tentarLogin(String username) throws Exception {
         return mvc.perform(post("/api/auth/login").contentType(MediaType.APPLICATION_JSON)
-                .content(json.writeValueAsString(Map.of("username", username, "password", SENHA)))).andReturn();
+                .content(json.writeValueAsString(Map.of("email", username + "@teste.local", "password", SENHA)))).andReturn();
     }
 
     private String login(String username) throws Exception {

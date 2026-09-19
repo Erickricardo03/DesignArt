@@ -1,24 +1,26 @@
+// Papéis do sistema (autoridade real: backend). SUPER_ADMIN = Nexus (sem tenant),
+// TENANT_ADMIN = administrador da empresa, USER = funcionário com permissões explícitas.
+export type PapelUsuario = 'SUPER_ADMIN' | 'TENANT_ADMIN' | 'USER';
+
 export interface User {
   id?: number;
-  username: string;
+  email: string;
   nomeCompleto: string;
-  email?: string;
   cargo?: string;
-  role: string;
-  salario?: number;
+  role: PapelUsuario;
   avatarUrl?: string;
   permissoes?: string[];
   ativo?: boolean;
+  convitePendente?: boolean;
 }
 
 export type ModuloAcesso = 'FINANCEIRO' | 'EQUIPE' | 'CONFIGURACOES';
 
 export interface UsuarioRequest {
-  username: string;
-  password?: string;
+  email: string;
   nomeCompleto: string;
   cargo?: string;
-  role: 'ADMIN' | 'COLABORADOR';
+  role: 'TENANT_ADMIN' | 'USER';
   permissoes: string[];
   ativo?: boolean;
 }

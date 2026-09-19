@@ -20,8 +20,15 @@ export class AuthService {
 
     if (savedToken && savedUser) {
       try {
+        const user = JSON.parse(savedUser) as User;
+        // Sessão salva antes da Fase 4.1 (papéis ADMIN/COLABORADOR, sem e-mail): descarta,
+        // pois o token antigo não é mais aceito pelo backend.
+        if (!['SUPER_ADMIN', 'TENANT_ADMIN', 'USER'].includes(user?.role) || !user?.email) {
+          this.logout();
+          return;
+        }
         this.token.set(savedToken);
-        this.currentUser.set(JSON.parse(savedUser));
+        this.currentUser.set(user);
       } catch (e) {
         this.logout();
       }
@@ -34,11 +41,12 @@ export class AuthService {
    * credenciais forem inválidas, o erro é propagado para a tela de login
    * mostrar a mensagem real (nunca um acesso fictício).
    */
-  login(username: string, password: string): Observable<LoginResponse> {
-    const u = (username || '').trim();
-    const p = (password || '').trim();
+  login(email: string, password: string): Observable<LoginResponse> {
+    // O backend normaliza o e-mail (trim + minúsculas). A senha é enviada EXATAMENTE
+    // como digitada: nunca é aparada nem alterada (espaços podem fazer parte dela).
+    const e = (email || '').trim();
 
-    return this.http.post<LoginResponse>(`${this.apiUrl}/login`, { username: u, password: p }).pipe(
+    return this.http.post<LoginResponse>(`${this.apiUrl}/login`, { email: e, password }).pipe(
       // Timeout generoso: hospedagens gratuitas (ex: Render) podem levar
       // dezenas de segundos para "acordar" no primeiro acesso após ficarem
       // inativas, e não há mais fallback para cobrir essa espera.

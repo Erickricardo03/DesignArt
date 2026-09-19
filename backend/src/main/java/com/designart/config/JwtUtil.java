@@ -1,6 +1,8 @@
 package com.designart.config;
 
+import com.designart.model.User;
 import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
 import org.springframework.beans.factory.annotation.Value;
@@ -8,11 +10,17 @@ import org.springframework.stereotype.Component;
 
 import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.util.Date;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.function.Function;
 
+/**
+ * Emissão e validação de JWT.
+ * <p>
+ * Claims: {@code sub} = ID do usuário (nunca e-mail/username), {@code tv} =
+ * token_version do usuário no momento da emissão, {@code role} (informativo:
+ * as authorities de cada requisição vêm SEMPRE do banco). Expira em 8h por
+ * padrão. O token NÃO carrega tenant, e-mail, senha ou hash.
+ */
 @Component
 public class JwtUtil {
 
@@ -23,7 +31,8 @@ public class JwtUtil {
     @Value("${jwt.secret}")
     private String secret;
 
-    @Value("${jwt.expiration:86400000}")
+    // 8 horas (28_800_000 ms).
+    @Value("${jwt.expiration:28800000}")
     private long jwtExpirationInMs;
 
     private SecretKey getSigningKey() {
@@ -31,36 +40,25 @@ public class JwtUtil {
         return Keys.hmacShaKeyFor(keyBytes);
     }
 
-    public String generateToken(String username, String role) {
-        Map<String, Object> claims = new HashMap<>();
-        claims.put("role", role);
-        return createToken(claims, username);
+    public String generateToken(User user) {
+        return generateToken(user, Duration.ofMillis(jwtExpirationInMs));
     }
 
-    private String createToken(Map<String, Object> claims, String subject) {
+    /** Sobrecarga com validade explícita (usada por testes para forjar tokens expirados). */
+    public String generateToken(User user, Duration validity) {
+        long now = System.currentTimeMillis();
         return Jwts.builder()
-                .claims(claims)
-                .subject(subject)
-                .issuedAt(new Date(System.currentTimeMillis()))
-                .expiration(new Date(System.currentTimeMillis() + jwtExpirationInMs))
+                .subject(String.valueOf(user.getId()))
+                .claim("tv", user.getTokenVersion())
+                .claim("role", user.getRole() != null ? user.getRole().name() : null)
+                .issuedAt(new Date(now))
+                .expiration(new Date(now + validity.toMillis()))
                 .signWith(getSigningKey())
                 .compact();
     }
 
-    public String extractUsername(String token) {
-        return extractClaim(token, Claims::getSubject);
-    }
-
-    public Date extractExpiration(String token) {
-        return extractClaim(token, Claims::getExpiration);
-    }
-
-    public <T> T extractClaim(String token, Function<Claims, T> claimsResolver) {
-        final Claims claims = extractAllClaims(token);
-        return claimsResolver.apply(claims);
-    }
-
-    private Claims extractAllClaims(String token) {
+    /** Valida assinatura e expiração. Lança {@link JwtException}/{@link IllegalArgumentException} se inválido. */
+    public Claims parse(String token) {
         return Jwts.parser()
                 .verifyWith(getSigningKey())
                 .build()
@@ -68,12 +66,18 @@ public class JwtUtil {
                 .getPayload();
     }
 
-    public Boolean isTokenExpired(String token) {
-        return extractExpiration(token).before(new Date());
+    /** ID do usuário (claim sub) ou {@code null} se ausente/malformado. */
+    public static Long userId(Claims claims) {
+        try {
+            return claims.getSubject() == null ? null : Long.valueOf(claims.getSubject());
+        } catch (NumberFormatException e) {
+            return null;
+        }
     }
 
-    public Boolean validateToken(String token, String username) {
-        final String tokenUsername = extractUsername(token);
-        return (tokenUsername.equals(username) && !isTokenExpired(token));
+    /** token_version do claim {@code tv} ou {@code null} se ausente. */
+    public static Integer tokenVersion(Claims claims) {
+        Object tv = claims.get("tv");
+        return tv instanceof Number n ? n.intValue() : null;
     }
 }

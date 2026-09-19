@@ -42,7 +42,9 @@ public class VendaService {
         venda.setId(null);
         venda.setTenantId(TenantContext.require());
         if (venda.getCodigoVenda() == null || venda.getCodigoVenda().isBlank()) {
-            venda.setCodigoVenda("#" + (System.currentTimeMillis() % 1000000000L));
+            // 9 dígitos aleatórios: o código por milissegundo colidia quando duas vendas do mesmo tenant
+            // eram criadas no mesmo instante (UNIQUE tenant+código => 500).
+            venda.setCodigoVenda("#" + (100_000_000L + java.util.concurrent.ThreadLocalRandom.current().nextLong(900_000_000L)));
         }
         if (venda.getDataVenda() == null) {
             venda.setDataVenda(LocalDateTime.now());

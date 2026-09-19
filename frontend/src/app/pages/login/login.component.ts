@@ -71,7 +71,7 @@ import { getApiBaseUrl, setApiBaseUrl, resetApiBaseUrl, isCustomApiUrlSet, getDe
               </button>
             </div>
             <h2>Entrar no sistema</h2>
-            <p>Informe seu login e senha cadastrados para continuar.</p>
+            <p>Informe seu e-mail e senha cadastrados para continuar.</p>
           </div>
 
           <!-- Mensagem de Alerta ou Dica de Conexão -->
@@ -89,16 +89,19 @@ import { getApiBaseUrl, setApiBaseUrl, resetApiBaseUrl, isCustomApiUrlSet, getDe
             </div>
 
             <div class="form-group">
-              <label class="form-label" for="username">LOGIN / USUÁRIO</label>
+              <label class="form-label" for="email">E-MAIL</label>
               <div class="input-with-icon">
-                <i class="bi bi-person-fill"></i>
-                <input 
-                  type="text" 
-                  id="username" 
-                  name="username" 
-                  class="form-control" 
-                  [(ngModel)]="username" 
-                  placeholder="Ex: admin"
+                <i class="bi bi-envelope-fill"></i>
+                <input
+                  type="email"
+                  id="email"
+                  name="email"
+                  class="form-control"
+                  [(ngModel)]="email"
+                  placeholder="voce@empresa.com"
+                  autocomplete="username"
+                  autocapitalize="none"
+                  spellcheck="false"
                   required
                 />
               </div>
@@ -115,6 +118,7 @@ import { getApiBaseUrl, setApiBaseUrl, resetApiBaseUrl, isCustomApiUrlSet, getDe
                   class="form-control" 
                   [(ngModel)]="password" 
                   placeholder="Informe sua senha"
+                  autocomplete="current-password"
                   required
                 />
                 <button type="button" class="btn-toggle-pwd" (click)="toggleShowPassword()">
@@ -122,6 +126,8 @@ import { getApiBaseUrl, setApiBaseUrl, resetApiBaseUrl, isCustomApiUrlSet, getDe
                 </button>
               </div>
             </div>
+
+            <div class="forgot-row"><a routerLink="/forgot-password">Esqueci minha senha</a></div>
 
             <button type="submit" class="btn btn-primary btn-submit mb-2" [disabled]="loading()">
               <span *ngIf="!loading()">Entrar no Sistema &rarr;</span>
@@ -504,6 +510,9 @@ import { getApiBaseUrl, setApiBaseUrl, resetApiBaseUrl, isCustomApiUrlSet, getDe
       padding: 0.25rem;
     }
 
+    .forgot-row { text-align: right; margin: -0.25rem 0 1rem; font-size: 0.8rem; }
+    .forgot-row a { color: var(--color-primary); font-weight: 600; }
+
     .btn-submit {
       width: 100%;
       padding: 0.85rem;
@@ -712,8 +721,9 @@ export class LoginComponent implements OnInit {
   themeService = inject(ThemeService);
   private router = inject(Router);
 
-  username: string = 'admin';
-  password: string = 'admin';
+  // Sem valores pré-preenchidos: nunca há credencial padrão na tela de login.
+  email: string = '';
+  password: string = '';
   showPassword = signal<boolean>(false);
   loading = signal<boolean>(false);
   errorMessage = signal<string>('');
@@ -778,22 +788,29 @@ export class LoginComponent implements OnInit {
   }
 
   onLogin(): void {
-    if (!this.username.trim() || !this.password.trim()) {
-      this.errorMessage.set('Por favor, preencha o usuário e a senha.');
+    if (!this.email.trim() || !this.password) {
+      this.errorMessage.set('Por favor, preencha o e-mail e a senha.');
       return;
     }
 
     this.loading.set(true);
     this.errorMessage.set('');
 
-    this.authService.login(this.username, this.password).subscribe({
-      next: () => {
+    this.authService.login(this.email, this.password).subscribe({
+      next: (res) => {
         this.loading.set(false);
+        // O painel administrativo da Nexus (SUPER_ADMIN) ainda não existe nesta etapa:
+        // não entra no app das empresas (o backend, de todo modo, negaria os dados).
+        if (res.user.role === 'SUPER_ADMIN') {
+          this.authService.logout();
+          this.errorMessage.set('O painel administrativo da Nexus ainda não está disponível nesta versão.');
+          return;
+        }
         this.router.navigate(['/dashboard']);
       },
       error: (err) => {
         this.loading.set(false);
-        this.errorMessage.set(err.message || err.error?.message || 'Usuário ou senha incorretos.');
+        this.errorMessage.set(err.message || err.error?.message || 'Usuário ou senha inválidos.');
       }
     });
   }

@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.*;
 @RequestMapping("/api/dashboard")
 @RequiredArgsConstructor
 @CrossOrigin(origins = "*")
+@com.designart.security.TenantMember
 public class DashboardController {
 
     private final DashboardService dashboardService;

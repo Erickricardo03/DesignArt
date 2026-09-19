@@ -13,6 +13,7 @@ import java.util.Map;
 @RequestMapping("/api/tarefas")
 @RequiredArgsConstructor
 @CrossOrigin(origins = "*")
+@com.designart.security.TenantMember
 public class TarefaController {
 
     private final TarefaService tarefaService;

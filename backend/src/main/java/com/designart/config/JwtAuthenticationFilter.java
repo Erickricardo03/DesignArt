@@ -2,25 +2,32 @@ package com.designart.config;
 
 import com.designart.model.User;
 import com.designart.repository.UserRepository;
+import com.designart.security.AuthoritiesFactory;
 import com.designart.tenant.TenantContext;
+import io.jsonwebtoken.Claims;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.GrantedAuthority;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Optional;
 
+/**
+ * Autentica cada requisição a partir do JWT, sempre contra o estado ATUAL do
+ * banco. Falha fechada: qualquer irregularidade deixa a requisição anônima
+ * (401 nos endpoints protegidos), sem detalhes.
+ * <p>
+ * Passos: assinatura + expiração -> userId (sub) -> usuário no banco ->
+ * token_version igual ao atual -> AccessPolicy (ativo, regra SUPER_ADMIN/tenant,
+ * tenant ATIVO) -> authorities construídas do banco -> TenantContext do usuário.
+ */
 @Component
 @RequiredArgsConstructor
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
@@ -49,43 +56,48 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
             return;
         }
-
         final String jwt = authHeader.substring(7);
+
         try {
-            final String username = jwtUtil.extractUsername(jwt);
-
-            if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
-                Optional<User> userOptional = userRepository.findByUsername(username);
-
-                // Estado ATUAL do banco a cada requisição: usuário desativado ou tenant
-                // suspenso/inativo deixa de autenticar mesmo com JWT ainda válido (falha
-                // fechada; a requisição segue anônima e recebe 401 sem detalhes).
-                if (userOptional.isPresent() && jwtUtil.validateToken(jwt, username)
-                        && accessPolicy.podeOperar(userOptional.get())) {
-                    User user = userOptional.get();
-                    List<GrantedAuthority> authorities = new ArrayList<>();
-                    authorities.add(new SimpleGrantedAuthority("ROLE_" + user.getRole()));
-                    if (user.getPermissoes() != null) {
-                        user.getPermissoes().forEach(permissao ->
-                                authorities.add(new SimpleGrantedAuthority("PERM_" + permissao)));
-                    }
-
-                    UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
-                            user.getUsername(),
-                            null,
-                            authorities
-                    );
-                    authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-                    SecurityContextHolder.getContext().setAuthentication(authToken);
-
-                    // Tenant sempre derivado do usuário carregado do banco NESTA
-                    // requisição — nunca de um claim do token ou de qualquer
-                    // valor enviado pelo cliente.
-                    TenantContext.set(user.getTenantId());
-                }
+            if (SecurityContextHolder.getContext().getAuthentication() != null) {
+                return;
             }
+            Claims claims = jwtUtil.parse(jwt); // assinatura + expiração
+            Long userId = JwtUtil.userId(claims);
+            Integer tokenVersion = JwtUtil.tokenVersion(claims);
+            if (userId == null || tokenVersion == null) {
+                return;
+            }
+
+            Optional<User> userOptional = userRepository.findById(userId);
+            if (userOptional.isEmpty()) {
+                return;
+            }
+            User user = userOptional.get();
+
+            // token_version diferente = sessão revogada (senha alterada, logout forçado, etc.).
+            if (tokenVersion != user.getTokenVersion()) {
+                return;
+            }
+            // Usuário ativo, regra SUPER_ADMIN <=> sem tenant, tenant ATIVO.
+            if (!accessPolicy.podeOperar(user)) {
+                return;
+            }
+
+            UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
+                    String.valueOf(user.getId()), // principal = userId
+                    null,
+                    AuthoritiesFactory.from(user)
+            );
+            authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+            SecurityContextHolder.getContext().setAuthentication(authToken);
+
+            // Tenant sempre derivado do usuário carregado do banco NESTA
+            // requisição — nunca de um claim do token ou de valor do cliente.
+            // SUPER_ADMIN fica com contexto vazio (falha fechada em tudo que é tenant-scoped).
+            TenantContext.set(user.getTenantId());
         } catch (Exception e) {
-            // Se o token for inválido, segue sem autenticação (e sem tenant).
+            // Token inválido/expirado/adulterado: segue sem autenticação (e sem tenant).
         }
     }
 }

@@ -4,7 +4,6 @@ import com.designart.model.Avaliacao;
 import com.designart.service.AvaliacaoService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -13,6 +12,7 @@ import java.util.List;
 @RequestMapping("/api/avaliacoes")
 @RequiredArgsConstructor
 @CrossOrigin(origins = "*")
+@com.designart.security.TenantMember
 public class AvaliacaoController {
 
     private final AvaliacaoService avaliacaoService;
@@ -28,19 +28,19 @@ public class AvaliacaoController {
     }
 
     @PostMapping
-    @PreAuthorize("hasRole('ADMIN') or hasAuthority('PERM_CONFIGURACOES')")
+    @com.designart.security.RequiresConfiguracoes
     public ResponseEntity<Avaliacao> criar(@RequestBody Avaliacao avaliacao) {
         return ResponseEntity.ok(avaliacaoService.criar(avaliacao));
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN') or hasAuthority('PERM_CONFIGURACOES')")
+    @com.designart.security.RequiresConfiguracoes
     public ResponseEntity<Avaliacao> atualizar(@PathVariable Long id, @RequestBody Avaliacao dados) {
         return ResponseEntity.ok(avaliacaoService.atualizar(id, dados));
     }
 
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN') or hasAuthority('PERM_CONFIGURACOES')")
+    @com.designart.security.RequiresConfiguracoes
     public ResponseEntity<Void> deletar(@PathVariable Long id) {
         avaliacaoService.deletar(id);
         return ResponseEntity.noContent().build();

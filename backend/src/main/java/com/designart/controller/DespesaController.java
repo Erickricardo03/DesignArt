@@ -5,7 +5,6 @@ import com.designart.model.Despesa;
 import com.designart.service.DespesaService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -14,6 +13,7 @@ import java.util.List;
 @RequestMapping("/api/despesas")
 @RequiredArgsConstructor
 @CrossOrigin(origins = "*")
+@com.designart.security.RequiresFinanceiro
 public class DespesaController {
 
     private final DespesaService despesaService;
@@ -34,19 +34,16 @@ public class DespesaController {
     }
 
     @PostMapping
-    @PreAuthorize("hasRole('ADMIN') or hasAuthority('PERM_FINANCEIRO')")
     public ResponseEntity<Despesa> criar(@RequestBody Despesa despesa) {
         return ResponseEntity.ok(despesaService.criar(despesa));
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN') or hasAuthority('PERM_FINANCEIRO')")
     public ResponseEntity<Despesa> atualizar(@PathVariable Long id, @RequestBody Despesa dados) {
         return ResponseEntity.ok(despesaService.atualizar(id, dados));
     }
 
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN') or hasAuthority('PERM_FINANCEIRO')")
     public ResponseEntity<Void> deletar(@PathVariable Long id) {
         despesaService.deletar(id);
         return ResponseEntity.noContent().build();

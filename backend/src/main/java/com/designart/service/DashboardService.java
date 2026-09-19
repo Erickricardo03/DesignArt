@@ -78,9 +78,13 @@ public class DashboardService {
 
         // Métricas financeiras
         LocalDateTime inicioMes = LocalDate.now().withDayOfMonth(1).atStartOfDay();
-        BigDecimal ganhosNoMes = vendaFotoRepository.sumGanhosNoMes(tenantId, inicioMes);
-        BigDecimal aReceber = vendaFotoRepository.sumAReceber(tenantId);
-        BigDecimal atrasados = vendaFotoRepository.sumAtrasados(tenantId);
+        // Blocos financeiros só para quem tem FINANCEIRO (TENANT_ADMIN implícito). Sem a
+        // permissão os campos saem AUSENTES (null, omitidos do JSON) e a lista de vendas vazia
+        // — nunca zeros que pareçam dados reais.
+        boolean podeVerFinanceiro = com.designart.security.CurrentAuthorities.hasPermission(com.designart.security.Permission.FINANCEIRO);
+        BigDecimal ganhosNoMes = podeVerFinanceiro ? vendaFotoRepository.sumGanhosNoMes(tenantId, inicioMes) : null;
+        BigDecimal aReceber = podeVerFinanceiro ? vendaFotoRepository.sumAReceber(tenantId) : null;
+        BigDecimal atrasados = podeVerFinanceiro ? vendaFotoRepository.sumAtrasados(tenantId) : null;
         // Sem rastreamento de visitas implementado: nunca inventa números.
         long visitasNaPagina = 0L;
 
@@ -91,7 +95,8 @@ public class DashboardService {
         List<ColaboradorRankingDto> ranking = getRankingColaboradores(todas);
 
         // Últimas Vendas
-        List<VendaFoto> ultimasVendas = vendaFotoRepository.findTop10ByTenantIdOrderByDataVendaDesc(tenantId);
+        List<VendaFoto> ultimasVendas = podeVerFinanceiro
+                ? vendaFotoRepository.findTop10ByTenantIdOrderByDataVendaDesc(tenantId) : new ArrayList<>();
 
         return DashboardStatsDto.builder()
                 .aFazer(aFazer)
@@ -100,9 +105,9 @@ public class DashboardService {
                 .atrasadas(atrasadas)
                 .concluidas(concluidas)
                 .totalTarefas(todas.size())
-                .ganhosNoMes(ganhosNoMes != null ? ganhosNoMes : BigDecimal.ZERO)
-                .aReceber(aReceber != null ? aReceber : BigDecimal.ZERO)
-                .atrasados(atrasados != null ? atrasados : BigDecimal.ZERO)
+                .ganhosNoMes(podeVerFinanceiro && ganhosNoMes == null ? BigDecimal.ZERO : ganhosNoMes)
+                .aReceber(podeVerFinanceiro && aReceber == null ? BigDecimal.ZERO : aReceber)
+                .atrasados(podeVerFinanceiro && atrasados == null ? BigDecimal.ZERO : atrasados)
                 .visitasNaPagina(visitasNaPagina)
                 .avisos(avisos)
                 .producaoMensal(producaoMensal)

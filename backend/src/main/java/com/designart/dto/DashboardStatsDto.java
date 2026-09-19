@@ -25,9 +25,13 @@ public class DashboardStatsDto {
     private long totalTarefas;
 
     // Métricas Financeiras (Página 5)
+    @com.fasterxml.jackson.annotation.JsonInclude(com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL)
     private BigDecimal ganhosNoMes;
-    @lombok.Getter(onMethod_ = @com.fasterxml.jackson.annotation.JsonProperty("aReceber"))
+    @lombok.Getter(onMethod_ = {@com.fasterxml.jackson.annotation.JsonProperty("aReceber"),
+            @com.fasterxml.jackson.annotation.JsonInclude(com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL)})
+    @com.fasterxml.jackson.annotation.JsonInclude(com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL)
     private BigDecimal aReceber;
+    @com.fasterxml.jackson.annotation.JsonInclude(com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL)
     private BigDecimal atrasados;
     private long visitasNaPagina;
 

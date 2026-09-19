@@ -46,13 +46,14 @@ public class DataInitializer implements CommandLineRunner {
     private final DespesaRepository despesaRepository;
     private final AvaliacaoRepository avaliacaoRepository;
     private final PasswordEncoder passwordEncoder;
+    private final com.designart.security.PasswordPolicy passwordPolicy;
     private final Environment environment;
 
     @Value("${app.seed-demo-data:false}")
     private boolean seedDemoData;
 
-    @Value("${dev.admin.username:}")
-    private String devAdminUsername;
+    @Value("${dev.admin.email:}")
+    private String devAdminEmail;
 
     @Value("${dev.admin.password:}")
     private String devAdminPassword;
@@ -83,7 +84,7 @@ public class DataInitializer implements CommandLineRunner {
     /**
      * Cria, opcionalmente, UM usuário administrador de conveniência para
      * desenvolvimento local — nunca em produção, nunca com senha fixa no
-     * código. Só age se DEV_ADMIN_USERNAME/DEV_ADMIN_PASSWORD estiverem
+     * código. Só age se DEV_ADMIN_EMAIL/DEV_ADMIN_PASSWORD estiverem
      * definidas como variável de ambiente e ainda não existir nenhum usuário.
      * A criação segura do primeiro SUPER_ADMIN real é escopo da Fase 4.
      */
@@ -94,26 +95,37 @@ public class DataInitializer implements CommandLineRunner {
         if (userRepository.count() > 0) {
             return;
         }
-        if (devAdminUsername == null || devAdminUsername.isBlank()
+        if (devAdminEmail == null || devAdminEmail.isBlank()
                 || devAdminPassword == null || devAdminPassword.isBlank()) {
-            log.warn("Nenhum usuário cadastrado e as variáveis de ambiente DEV_ADMIN_USERNAME/DEV_ADMIN_PASSWORD " +
+            log.warn("Nenhum usuário cadastrado e as variáveis de ambiente DEV_ADMIN_EMAIL/DEV_ADMIN_PASSWORD " +
                     "não foram definidas. O backend iniciará SEM nenhum login disponível até que você defina essas " +
                     "variáveis (apenas para desenvolvimento) ou implemente o bootstrap seguro do SUPER_ADMIN (Fase 4).");
             return;
         }
 
-        String username = devAdminUsername.trim().toLowerCase();
+        String email = com.designart.security.EmailAddress.normalizeOrNull(devAdminEmail);
+        if (email == null) {
+            log.warn("DEV_ADMIN_EMAIL não é um e-mail válido; usuário de desenvolvimento NÃO foi criado.");
+            return;
+        }
+        try {
+            passwordPolicy.validate(devAdminPassword, email); // mesma política de produção
+        } catch (com.designart.exception.InvalidRequestException e) {
+            log.warn("DEV_ADMIN_PASSWORD não atende à política de senha ({}); usuário de desenvolvimento NÃO foi criado.",
+                    e.getMessage());
+            return;
+        }
+
         userRepository.save(User.builder()
                 .tenantId(obterOuCriarTenantDev().getId())
-                .username(username)
                 .password(passwordEncoder.encode(devAdminPassword))
                 .nomeCompleto("Administrador (Dev)")
-                .email(username + "@nexusdevelopment.tech")
+                .email(email)
                 .cargo("Administrador de Desenvolvimento")
-                .role("ADMIN")
+                .role(com.designart.security.Role.TENANT_ADMIN)
                 .ativo(true)
                 .build());
-        log.warn("Usuário administrador de DESENVOLVIMENTO criado a partir de variáveis de ambiente ({}).", username);
+        log.warn("Usuário TENANT_ADMIN de DESENVOLVIMENTO criado a partir de variáveis de ambiente ({}).", email);
     }
 
     /** Só chamado fora de produção (checagens de perfil acima). */

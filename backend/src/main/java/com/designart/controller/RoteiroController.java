@@ -12,6 +12,7 @@ import java.util.List;
 @RequestMapping("/api/roteiros")
 @RequiredArgsConstructor
 @CrossOrigin(origins = "*")
+@com.designart.security.TenantMember
 public class RoteiroController {
 
     private final RoteiroService roteiroService;

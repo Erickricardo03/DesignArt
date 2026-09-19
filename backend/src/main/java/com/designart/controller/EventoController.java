@@ -13,6 +13,7 @@ import java.util.List;
 @RequestMapping("/api/eventos")
 @RequiredArgsConstructor
 @CrossOrigin(origins = "*")
+@com.designart.security.TenantMember
 public class EventoController {
 
     private final EventoService eventoService;

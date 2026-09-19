@@ -183,12 +183,12 @@ import { SidebarComponent } from '../../shared/components/sidebar.component';
             </div>
           </div>
 
-          <!-- Card: Gestão de Usuários & Permissões (somente ADMIN) -->
+          <!-- Card: Gestão de Usuários & Permissões (somente TENANT_ADMIN) -->
           <div class="config-card usuarios-card" *ngIf="isAdmin()">
             <div class="config-card-header">
               <div>
                 <h2 class="config-card-title"><i class="bi bi-person-lock text-purple"></i> Usuários & Permissões de Acesso</h2>
-                <p class="config-card-subtitle">Cadastre os acessos dos seus funcionários e defina exatamente quais áreas do sistema cada um pode ver. Todo login segue o padrão <strong>usuario&#64;nexusdevelopment.tech</strong>.</p>
+                <p class="config-card-subtitle">Cadastre os acessos dos seus funcionários e defina exatamente quais áreas do sistema cada um pode ver. Cada pessoa entra com o <strong>próprio e-mail</strong>.</p>
               </div>
               <button class="btn-add-muni" (click)="abrirNovoUsuario()" *ngIf="!usuarioFormOpen">
                 <i class="bi bi-person-plus"></i> Novo Usuário
@@ -201,40 +201,34 @@ import { SidebarComponent } from '../../shared/components/sidebar.component';
                 <input type="text" [(ngModel)]="usuarioForm.cargo" placeholder="Cargo (ex: Social Media)" class="form-control" />
               </div>
               <div class="form-grid-avaliacao">
-                <div>
-                  <input
-                    type="text"
-                    [(ngModel)]="usuarioForm.username"
-                    placeholder="Nome de acesso (ex: joao.silva)"
-                    class="form-control"
-                    [disabled]="!!usuarioEditandoId"
-                  />
-                  <span class="email-preview" *ngIf="usuarioForm.username">
-                    <i class="bi bi-envelope-check"></i> {{ emailGerado() }}
-                  </span>
-                </div>
                 <input
-                  type="password"
-                  [(ngModel)]="usuarioForm.password"
-                  [placeholder]="usuarioEditandoId ? 'Nova senha (deixe em branco para manter)' : 'Senha de acesso'"
+                  type="email"
+                  [(ngModel)]="usuarioForm.email"
+                  placeholder="E-mail de acesso (ex: joao&#64;empresa.com)"
                   class="form-control"
+                  autocomplete="off"
+                  autocapitalize="none"
                 />
+                <p class="convite-hint" *ngIf="!usuarioEditandoId">
+                  <i class="bi bi-envelope-check"></i>
+                  O usuário receberá um <strong>convite por e-mail</strong> (válido por 72 horas) e definirá a própria senha. Você nunca vê nem define senhas.
+                </p>
               </div>
 
               <div class="permissoes-box">
                 <label class="form-label-bold">Nível de acesso</label>
                 <div class="role-select-row">
                   <label class="role-radio">
-                    <input type="radio" name="role" value="COLABORADOR" [(ngModel)]="usuarioForm.role" />
-                    Colaborador (acesso restrito, definido abaixo)
+                    <input type="radio" name="role" value="USER" [(ngModel)]="usuarioForm.role" />
+                    Usuário (acesso restrito, definido abaixo)
                   </label>
                   <label class="role-radio">
-                    <input type="radio" name="role" value="ADMIN" [(ngModel)]="usuarioForm.role" />
-                    Administrador (acesso total ao sistema)
+                    <input type="radio" name="role" value="TENANT_ADMIN" [(ngModel)]="usuarioForm.role" />
+                    Administrador (acesso total à sua empresa)
                   </label>
                 </div>
 
-                <div class="permissoes-checks" *ngIf="usuarioForm.role === 'COLABORADOR'">
+                <div class="permissoes-checks" *ngIf="usuarioForm.role === 'USER'">
                   <label class="form-label-bold">Módulos liberados para este colaborador</label>
                   <label class="perm-check">
                     <input type="checkbox" [checked]="temPermissao('FINANCEIRO')" (change)="togglePermissao('FINANCEIRO')" />
@@ -253,7 +247,7 @@ import { SidebarComponent } from '../../shared/components/sidebar.component';
 
               <div class="avaliacao-form-actions">
                 <button class="btn-save-sm" (click)="salvarUsuario()">
-                  <i class="bi bi-check2"></i> {{ usuarioEditandoId ? 'Salvar Alterações' : 'Cadastrar Usuário' }}
+                  <i class="bi bi-check2"></i> {{ usuarioEditandoId ? 'Salvar Alterações' : 'Enviar convite' }}
                 </button>
                 <button class="btn-cancel-sm" (click)="cancelarUsuario()">Cancelar</button>
               </div>
@@ -266,15 +260,17 @@ import { SidebarComponent } from '../../shared/components/sidebar.component';
                     <span class="muni-nome">{{ u.nomeCompleto }}</span>
                     <span class="avaliacao-cargo">{{ u.cargo || 'Sem cargo definido' }} &middot; {{ u.email }}</span>
                   </div>
-                  <span class="avaliacao-status" [class.inativo]="u.role !== 'ADMIN' && !u.permissoes?.length">
-                    {{ u.role === 'ADMIN' ? 'ADMIN' : 'COLABORADOR' }}
+                  <span class="avaliacao-status convite-pendente" *ngIf="u.convitePendente">CONVITE PENDENTE</span>
+                  <span class="avaliacao-status" *ngIf="!u.convitePendente" [class.inativo]="u.role !== 'TENANT_ADMIN' && !u.permissoes?.length">
+                    {{ u.role === 'TENANT_ADMIN' ? 'ADMIN' : 'USUÁRIO' }}
                   </span>
                 </div>
-                <div class="permissoes-chips" *ngIf="u.role !== 'ADMIN'">
+                <div class="permissoes-chips" *ngIf="u.role !== 'TENANT_ADMIN'">
                   <span class="perm-chip" *ngFor="let p of u.permissoes">{{ p }}</span>
                   <span class="perm-chip perm-chip-empty" *ngIf="!u.permissoes?.length">Sem acesso a módulos restritos</span>
                 </div>
                 <div class="avaliacao-item-actions">
+                  <button class="btn-icon-edit" *ngIf="u.convitePendente" (click)="reenviarConvite(u)" title="Reenviar convite"><i class="bi bi-envelope-arrow-up"></i></button>
                   <button class="btn-icon-edit" (click)="editarUsuario(u)" title="Editar"><i class="bi bi-pencil"></i></button>
                   <button class="btn-del-muni" (click)="removerUsuario(u)" title="Excluir"><i class="bi bi-trash"></i></button>
                 </div>
@@ -288,6 +284,8 @@ import { SidebarComponent } from '../../shared/components/sidebar.component';
     </div>
   `,
   styles: [`
+    .convite-hint { font-size: 0.8rem; color: var(--text-muted); margin: 0.25rem 0 0; align-self: center; }
+    .convite-pendente { background: rgba(245, 158, 11, 0.15); color: #B45309; }
     .page-body {
       padding: 1.75rem 2rem;
     }
@@ -754,7 +752,7 @@ export class ConfiguracoesComponent implements OnInit {
   }
 
   isAdmin(): boolean {
-    return this.authService.currentUser()?.role === 'ADMIN';
+    return this.authService.currentUser()?.role === 'TENANT_ADMIN';
   }
 
   carregar(): void {
@@ -866,12 +864,7 @@ export class ConfiguracoesComponent implements OnInit {
 
   // === USUÁRIOS & PERMISSÕES ===
   private usuarioFormVazio(): UsuarioRequest {
-    return { username: '', password: '', nomeCompleto: '', cargo: '', role: 'COLABORADOR', permissoes: [] };
-  }
-
-  emailGerado(): string {
-    const username = (this.usuarioForm.username || '').trim().toLowerCase().replace(/[^a-z0-9._-]/g, '');
-    return username ? `${username}@nexusdevelopment.tech` : '';
+    return { email: '', nomeCompleto: '', cargo: '', role: 'USER', permissoes: [] };
   }
 
   temPermissao(modulo: ModuloAcesso): boolean {
@@ -896,11 +889,10 @@ export class ConfiguracoesComponent implements OnInit {
   editarUsuario(u: User): void {
     this.usuarioEditandoId = u.id ?? null;
     this.usuarioForm = {
-      username: u.username,
-      password: '',
+      email: u.email,
       nomeCompleto: u.nomeCompleto,
       cargo: u.cargo || '',
-      role: (u.role as 'ADMIN' | 'COLABORADOR') || 'COLABORADOR',
+      role: u.role === 'TENANT_ADMIN' ? 'TENANT_ADMIN' : 'USER',
       permissoes: [...(u.permissoes || [])],
       ativo: u.ativo,
     };
@@ -914,12 +906,8 @@ export class ConfiguracoesComponent implements OnInit {
   }
 
   salvarUsuario(): void {
-    if (!this.usuarioForm.nomeCompleto.trim() || !this.usuarioForm.username.trim()) {
-      alert('Preencha ao menos o nome completo e o nome de usuário.');
-      return;
-    }
-    if (!this.usuarioEditandoId && !this.usuarioForm.password?.trim()) {
-      alert('Defina uma senha para o novo usuário.');
+    if (!this.usuarioForm.nomeCompleto.trim() || !this.usuarioForm.email.trim()) {
+      alert('Preencha ao menos o nome completo e o e-mail.');
       return;
     }
 
@@ -929,8 +917,12 @@ export class ConfiguracoesComponent implements OnInit {
 
     acao.subscribe({
       next: () => {
+        const foiConvite = !this.usuarioEditandoId;
         this.cancelarUsuario();
         this.carregar();
+        if (foiConvite) {
+          alert('Convite enviado por e-mail.');
+        }
       },
       error: (err) => {
         alert(err?.error?.message || 'Não foi possível salvar o usuário. Verifique a conexão com o servidor.');
@@ -938,8 +930,16 @@ export class ConfiguracoesComponent implements OnInit {
     });
   }
 
+  reenviarConvite(u: User): void {
+    if (!u.id) return;
+    this.api.reenviarConvite(u.id).subscribe({
+      next: () => alert('Novo convite enviado. O link anterior deixou de funcionar.'),
+      error: (err) => alert(err?.error?.message || 'Não foi possível reenviar o convite.'),
+    });
+  }
+
   removerUsuario(u: User): void {
-    if (u.username === this.authService.currentUser()?.username) {
+    if (u.email === this.authService.currentUser()?.email) {
       alert('Você não pode excluir o seu próprio usuário.');
       return;
     }

@@ -36,6 +36,11 @@
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-validation</artifactId>
 		</dependency>
+		<!-- E-mail (Fase 4.3): usado apenas atras da interface EmailSender; configuracao 100% por ambiente -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-mail</artifactId>
+		</dependency>
 
 		<!-- H2: somente para o perfil dev (ver application-dev.properties) -->
 		<dependency>

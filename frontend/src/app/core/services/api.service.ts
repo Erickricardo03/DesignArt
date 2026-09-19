@@ -358,6 +358,10 @@ export class ApiService {
     return this.http.post<User>(`${this.baseUrl}/usuarios`, usuario, { headers: this.getHeaders() });
   }
 
+  reenviarConvite(id: number): Observable<User> {
+    return this.http.post<User>(`${this.baseUrl}/usuarios/${id}/reenviar-convite`, {}, { headers: this.getHeaders() });
+  }
+
   updateUsuario(id: number, usuario: Partial<UsuarioRequest>): Observable<User> {
     return this.http.put<User>(`${this.baseUrl}/usuarios/${id}`, usuario, { headers: this.getHeaders() });
   }

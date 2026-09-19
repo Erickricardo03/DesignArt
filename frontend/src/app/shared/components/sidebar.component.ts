@@ -34,12 +34,12 @@ import { NavigationService } from '../../core/services/navigation.service';
 
       <!-- Widget de Perfil do Topo (Exatamente como em 16718.jpg) -->
       <div class="user-top-widget">
-        <div class="user-avatar-circle">
-          <img src="https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=120&q=80" alt="Igor Santos" />
+        <div class="user-avatar-circle" style="display:flex;align-items:center;justify-content:center;font-weight:800;">
+          {{ iniciais() }}
         </div>
         <div class="user-top-info">
-          <h3 class="user-name-title">Igor Santos</h3>
-          <span class="user-role-badge">CEO</span>
+          <h3 class="user-name-title">{{ nomeUsuario() }}</h3>
+          <span class="user-role-badge">{{ rotuloPapel() }}</span>
         </div>
       </div>
 
@@ -400,11 +400,35 @@ export class SidebarComponent {
   }
 
   isAdmin(): boolean {
-    return this.authService.currentUser()?.role === 'ADMIN';
+    return this.authService.currentUser()?.role === 'TENANT_ADMIN';
+  }
+
+  nomeUsuario(): string {
+    const u = this.authService.currentUser();
+    return u?.nomeCompleto || u?.email || '';
+  }
+
+  iniciais(): string {
+    const partes = this.nomeUsuario().trim().split(/\s+/).filter(Boolean);
+    if (!partes.length) return '?';
+    const letras = partes.length === 1 ? partes[0].substring(0, 2) : partes[0][0] + partes[partes.length - 1][0];
+    return letras.toUpperCase();
+  }
+
+  // Rótulo do papel real do usuário autenticado (nada de cargo fixo).
+  rotuloPapel(): string {
+    switch (this.authService.currentUser()?.role) {
+      case 'TENANT_ADMIN': return 'ADMINISTRADOR';
+      case 'USER': return 'USUÁRIO';
+      case 'SUPER_ADMIN': return 'NEXUS';
+      default: return '';
+    }
   }
 
   temAcesso(modulo: 'FINANCEIRO' | 'EQUIPE' | 'CONFIGURACOES'): boolean {
-    return this.isAdmin() || !!this.authService.currentUser()?.permissoes?.includes(modulo);
+    // TENANT_ADMIN: implícito. USER: só as atribuídas. (Conveniência de menu; o backend decide.)
+    const u = this.authService.currentUser();
+    return this.isAdmin() || (u?.role === 'USER' && !!u.permissoes?.includes(modulo));
   }
 
   logout(): void {

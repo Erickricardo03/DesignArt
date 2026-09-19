@@ -14,6 +14,21 @@ export const routes: Routes = [
     title: 'Login | Design Arte',
   },
   {
+    path: 'forgot-password',
+    loadComponent: () => import('./pages/auth/forgot-password.component').then((m) => m.ForgotPasswordComponent),
+    title: 'Recuperar senha | Design Arte',
+  },
+  {
+    path: 'reset-password',
+    loadComponent: () => import('./pages/auth/reset-password.component').then((m) => m.ResetPasswordComponent),
+    title: 'Nova senha | Design Arte',
+  },
+  {
+    path: 'accept-invite',
+    loadComponent: () => import('./pages/auth/accept-invite.component').then((m) => m.AcceptInviteComponent),
+    title: 'Ativar conta | Design Arte',
+  },
+  {
     path: 'dashboard',
     loadComponent: () => import('./pages/dashboard/dashboard.component').then((m) => m.DashboardComponent),
     canActivate: [authGuard],

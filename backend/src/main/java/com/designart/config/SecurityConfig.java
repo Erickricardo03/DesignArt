@@ -84,7 +84,10 @@ public class SecurityConfig {
         http
             .csrf(AbstractHttpConfigurer::disable)
             .cors(Customizer.withDefaults())
-            .headers(headers -> headers.frameOptions(HeadersConfigurer.FrameOptionsConfig::disable))
+            .headers(headers -> headers
+                .frameOptions(HeadersConfigurer.FrameOptionsConfig::disable)
+                // Respostas da API nunca vazam URL (nem token) via Referer.
+                .referrerPolicy(r -> r.policy(org.springframework.security.web.header.writers.ReferrerPolicyHeaderWriter.ReferrerPolicy.NO_REFERRER)))
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .exceptionHandling(ex -> ex
                 .authenticationEntryPoint(authenticationEntryPoint())
@@ -96,9 +99,18 @@ public class SecurityConfig {
                 // faz o Spring encaminhar para /error, que cairia em "anyRequest().authenticated()"
                 // e devolveria um 403 vazio no lugar da mensagem de erro real.
                 .requestMatchers("/error").permitAll()
-                // /me devolve o usuário logado: exige autenticação (nunca público).
-                .requestMatchers("/api/auth/me").authenticated()
-                .requestMatchers("/api/auth/**", "/h2-console/**").permitAll()
+                // ÚNICOS endpoints da API liberados a anônimos (lista aprovada, caminho exato;
+                // espelhada por @PublicEndpoint e verificada pelo EndpointAuthorizationCoverageTest):
+                //   POST /api/auth/login, GET /api/auth/ping,
+                //   POST /api/auth/forgot-password, POST /api/auth/reset-password, POST /api/auth/accept-invite
+                // Tudo o mais em /api/** — inclusive /api/auth/me — exige autenticação.
+                .requestMatchers(HttpMethod.POST, "/api/auth/login").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/auth/ping").permitAll()
+                .requestMatchers(HttpMethod.POST, "/api/auth/forgot-password").permitAll()
+                .requestMatchers(HttpMethod.POST, "/api/auth/reset-password").permitAll()
+                .requestMatchers(HttpMethod.POST, "/api/auth/accept-invite").permitAll()
+                // Console H2: só existe quando habilitado no perfil dev (desligado por padrão).
+                .requestMatchers("/h2-console/**").permitAll()
                 // Multi-tenant (Fase 3): TODA a API de negócio exige autenticação, pois o
                 // tenant só pode ser derivado do usuário autenticado. Endpoints públicos
                 // por tenant (ex: landing por domínio) ficam para uma fase futura.

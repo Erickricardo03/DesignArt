@@ -12,6 +12,7 @@ import java.util.List;
 @RequestMapping("/api/clientes")
 @RequiredArgsConstructor
 @CrossOrigin(origins = "*")
+@com.designart.security.TenantMember
 public class ClienteController {
 
     private final ClienteService clienteService;

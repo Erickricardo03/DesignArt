@@ -59,8 +59,8 @@ class TenantIsolationIntegrationTest {
     void prepararTenants() throws Exception {
         tenantA = tenantRepository.save(Tenant.builder().name("Tenant A (teste)").slug("tenant-a-teste").build());
         tenantB = tenantRepository.save(Tenant.builder().name("Tenant B (teste)").slug("tenant-b-teste").build());
-        criarUsuario("admin.a", "ADMIN", tenantA.getId());
-        criarUsuario("admin.b", "ADMIN", tenantB.getId());
+        criarUsuario("admin.a", com.designart.security.Role.TENANT_ADMIN, tenantA.getId());
+        criarUsuario("admin.b", com.designart.security.Role.TENANT_ADMIN, tenantB.getId());
         tokenA = login("admin.a");
         tokenB = login("admin.b");
     }
@@ -305,8 +305,8 @@ class TenantIsolationIntegrationTest {
         // Tenants exclusivos para que os totais sejam determinísticos.
         Tenant tc = tenantRepository.save(Tenant.builder().name("C (teste)").slug("tenant-c-teste").build());
         Tenant td = tenantRepository.save(Tenant.builder().name("D (teste)").slug("tenant-d-teste").build());
-        criarUsuario("admin.c", "ADMIN", tc.getId());
-        criarUsuario("admin.d", "ADMIN", td.getId());
+        criarUsuario("admin.c", com.designart.security.Role.TENANT_ADMIN, tc.getId());
+        criarUsuario("admin.d", com.designart.security.Role.TENANT_ADMIN, td.getId());
         String tokenC = login("admin.c");
         String tokenD = login("admin.d");
 
@@ -340,17 +340,17 @@ class TenantIsolationIntegrationTest {
         void listagemMostraSoUsuariosDoProprioTenant() throws Exception {
             JsonNode listaA = corpo(get("/api/usuarios"), tokenA);
             Set<String> nomes = new HashSet<>();
-            listaA.forEach(u -> nomes.add(u.get("username").asText()));
-            assertThat(nomes).contains("admin.a").doesNotContain("admin.b");
+            listaA.forEach(u -> nomes.add(u.get("email").asText()));
+            assertThat(nomes).contains("admin.a@teste.local").doesNotContain("admin.b@teste.local");
         }
 
         @Test
         void aNaoAlteraNemExcluiUsuarioDeB() throws Exception {
-            long idAdminB = userRepository.findByUsername("admin.b").orElseThrow().getId();
+            long idAdminB = userRepository.findByEmail("admin.b@teste.local").orElseThrow().getId();
             assertThat(status(put("/api/usuarios/" + idAdminB).contentType(MediaType.APPLICATION_JSON)
                     .content("{\"nomeCompleto\":\"HACKEADO\",\"ativo\":false}"), tokenA)).isEqualTo(404);
             assertThat(status(delete("/api/usuarios/" + idAdminB), tokenA)).isEqualTo(404);
-            User b = userRepository.findByUsername("admin.b").orElseThrow();
+            User b = userRepository.findByEmail("admin.b@teste.local").orElseThrow();
             assertThat(b.getNomeCompleto()).isNotEqualTo("HACKEADO");
             assertThat(b.getAtivo()).isTrue();
         }
@@ -358,18 +358,18 @@ class TenantIsolationIntegrationTest {
         @Test
         void usuarioCriadoPorAPertenceSempreAoTenantDeA() throws Exception {
             Map<String, Object> corpo = new java.util.HashMap<>();
-            corpo.put("username", "novo.de.a");
-            corpo.put("password", "x-123456");
-            corpo.put("role", "COLABORADOR");
+            corpo.put("email", "novo.de.a@teste.local");
+            corpo.put("password", "senha-x-123456");
+            corpo.put("role", "USER");
             corpo.put("tenantId", tenantB.getId()); // tentativa de plantar usuário no tenant B
             assertThat(status(post("/api/usuarios").contentType(MediaType.APPLICATION_JSON)
                     .content(json.writeValueAsString(corpo)), tokenA)).isEqualTo(200);
-            assertThat(userRepository.findByUsername("novo.de.a").orElseThrow().getTenantId()).isEqualTo(tenantA.getId());
+            assertThat(userRepository.findByEmail("novo.de.a@teste.local").orElseThrow().getTenantId()).isEqualTo(tenantA.getId());
         }
 
         @Test
         void colaboradorNaoAcessaGestaoDeUsuarios() throws Exception {
-            criarUsuario("colab.a", "COLABORADOR", tenantA.getId());
+            criarUsuario("colab.a", com.designart.security.Role.USER, tenantA.getId());
             String tokenColab = login("colab.a");
             assertThat(status(get("/api/usuarios"), tokenColab)).isEqualTo(403);
         }
@@ -394,7 +394,8 @@ class TenantIsolationIntegrationTest {
         void tokenInvalidoOuForjadoRetorna401() throws Exception {
             assertThat(status(get("/api/clientes"), "lixo.lixo.lixo")).isEqualTo(401);
             // Token com estrutura válida, assinado com OUTRO segredo.
-            String forjado = io.jsonwebtoken.Jwts.builder().subject("admin.b")
+            String idAdminB = String.valueOf(userRepository.findByEmail("admin.b@teste.local").orElseThrow().getId());
+            String forjado = io.jsonwebtoken.Jwts.builder().subject(idAdminB).claim("tv", 0)
                     .claim("tenantId", tenantB.getId())
                     .signWith(io.jsonwebtoken.security.Keys.hmacShaKeyFor(
                             "outro-segredo-outro-segredo-outro-segredo-outro-segredo".getBytes()))
@@ -403,8 +404,9 @@ class TenantIsolationIntegrationTest {
         }
 
         @Test
-        void usuarioSemTenantFalhaFechadoNosRecursosDeNegocio() throws Exception {
-            criarUsuario("sem.tenant", "ADMIN", null);
+        void superAdminSemTenantFalhaFechadoNosRecursosDeNegocio() throws Exception {
+            // SUPER_ADMIN legítimo (sem tenant): autentica, mas NÃO opera dados de tenant.
+            criarUsuario("sem.tenant", com.designart.security.Role.SUPER_ADMIN, null);
             String token = login("sem.tenant");
             assertThat(status(get("/api/clientes"), token)).isEqualTo(403);
             assertThat(status(post("/api/clientes").contentType(MediaType.APPLICATION_JSON)
@@ -427,14 +429,14 @@ class TenantIsolationIntegrationTest {
     // ------------------------------------------------------------------
     // Helpers
     // ------------------------------------------------------------------
-    private void criarUsuario(String username, String role, Long tenantId) {
-        userRepository.save(User.builder().username(username).password(passwordEncoder.encode(SENHA))
+    private void criarUsuario(String username, com.designart.security.Role role, Long tenantId) {
+        userRepository.save(User.builder().email(username + "@teste.local").password(passwordEncoder.encode(SENHA))
                 .nomeCompleto(username).role(role).ativo(true).tenantId(tenantId).build());
     }
 
     private String login(String username) throws Exception {
         MvcResult r = mvc.perform(post("/api/auth/login").contentType(MediaType.APPLICATION_JSON)
-                .content(json.writeValueAsString(Map.of("username", username, "password", SENHA)))).andReturn();
+                .content(json.writeValueAsString(Map.of("email", username + "@teste.local", "password", SENHA)))).andReturn();
         assertThat(r.getResponse().getStatus()).as("login " + username).isEqualTo(200);
         return json.readTree(r.getResponse().getContentAsString()).get("token").asText();
     }

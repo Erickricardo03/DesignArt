@@ -19,7 +19,10 @@ export function moduleAccessGuard(modulo: ModuloAcesso): CanActivateFn {
     }
 
     const user = authService.currentUser();
-    if (user?.role === 'ADMIN' || user?.permissoes?.includes(modulo)) {
+    // TENANT_ADMIN tem as permissões do tenant implicitamente; USER só as atribuídas;
+    // SUPER_ADMIN não opera módulos de tenant. (Conveniência de navegação: a
+    // autorização real é feita pelo backend.)
+    if (user?.role === 'TENANT_ADMIN' || (user?.role === 'USER' && user.permissoes?.includes(modulo))) {
       return true;
     }
 

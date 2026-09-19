@@ -12,6 +12,7 @@ import java.util.List;
 @RequestMapping("/api/logos")
 @RequiredArgsConstructor
 @CrossOrigin(origins = "*")
+@com.designart.security.TenantMember
 public class LogoClienteController {
 
     private final LogoClienteService logoClienteService;
