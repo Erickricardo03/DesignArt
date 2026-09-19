@@ -29,7 +29,11 @@ class TenantStructureGuardTest {
     /** Entidades com tenant_id que NÃO são tenant-scoped comuns (ver relatório da Fase 3). */
     private static final Set<String> EXCECOES = Set.of(
             "Tenant", // ESTRUTURAL: é o próprio tenant
-            "User"    // tenant_id nullable (SUPER_ADMIN futuro); acesso via UserRepository com métodos ...AndTenantId
+            "User",   // tenant_id nullable (SUPER_ADMIN futuro); acesso via UserRepository com métodos ...AndTenantId
+            // PLANO DE CONTROLE (Fase 4.4.1): dados comerciais/administrativos POR tenant, mas administrados SÓ pelo
+            // SUPER_ADMIN (/api/admin/**) e resolvidos pelo EntitlementService. NÃO são dados de negócio do tenant.
+            // O ControlPlaneStructureGuardTest garante que só esses pacotes acessam seus repositories.
+            "Subscription", "TenantFeatureOverride", "TenantBranding"
     );
 
     @Autowired EntityManager entityManager;

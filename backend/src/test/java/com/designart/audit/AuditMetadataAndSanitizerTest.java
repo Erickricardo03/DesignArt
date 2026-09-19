@@ -57,7 +57,7 @@ class AuditMetadataAndSanitizerTest {
         assertThat(AuditMetadata.MAX_LENGTH).isEqualTo(2000);
     }
 
-    /** A API pública NÃO pode aceitar texto livre/objetos genéricos: só enums, boolean e Set de enums. */
+    /** A API pública NÃO pode aceitar texto livre/objetos genéricos: só enums, boolean, contagem int e Set de enums. */
     @Test
     void apiDoMetadataNaoAceitaStringObjectMapNemGenericos() {
         List<Class<?>> classes = List.of(AuditMetadata.class, AuditMetadata.Builder.class);
@@ -76,7 +76,8 @@ class AuditMetadataAndSanitizerTest {
 
     private boolean permitido(Type t) {
         if (t instanceof Class<?> k) {
-            return k == boolean.class || k.isEnum();
+            // int: somente contagens (ex.: nº de features alteradas); um número primitivo não carrega texto/segredo.
+            return k == boolean.class || k == int.class || k.isEnum();
         }
         if (t instanceof ParameterizedType p && p.getRawType() == Set.class) {
             Type arg = p.getActualTypeArguments()[0];

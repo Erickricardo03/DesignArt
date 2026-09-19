@@ -7,5 +7,10 @@ package com.designart.audit;
 public enum AuditField {
     EMAIL,
     NOME,
-    CARGO
+    CARGO,
+    DESCRIPTION,
+    ACTIVE,
+    PRIMARY_COLOR,
+    SECONDARY_COLOR,
+    ACCENT_COLOR
 }

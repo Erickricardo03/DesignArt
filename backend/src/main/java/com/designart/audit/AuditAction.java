@@ -2,10 +2,7 @@ package com.designart.audit;
 
 /**
  * CATÁLOGO de ações auditáveis. Só entram aqui ações que JÁ existem no sistema.
- * <p>
- * RESERVADAS para as próximas etapas (ainda NÃO existem; serão adicionadas junto com as
- * funcionalidades correspondentes, nunca antes): SUPER_ADMIN_BOOTSTRAPPED, TENANT_CREATED,
- * TENANT_SUSPENDED, TENANT_ACTIVATED, TENANT_STATUS_CHANGED.
+ * Nenhuma ação carrega segredo: o detalhe vai em {@link AuditMetadata} (enums/booleanos/contagens).
  */
 public enum AuditAction {
     LOGIN_SUCCESS,
@@ -29,5 +26,18 @@ public enum AuditAction {
     INVITE_RESENT,
     INVITE_ACCEPTED,
     /** Falha na entrega do e-mail de convite; o token foi revogado (o administrador pode reenviar). */
-    INVITE_EMAIL_FAILED
+    INVITE_EMAIL_FAILED,
+    // --- Nexus Control Center (SUPER_ADMIN, /api/admin/**) ---
+    /** Primeiro SUPER_ADMIN criado pelo bootstrap (habilitado por configuração; nunca registra credencial). */
+    SUPER_ADMIN_BOOTSTRAPPED,
+    TENANT_CREATED,
+    TENANT_SUSPENDED,
+    TENANT_REACTIVATED,
+    PLAN_CREATED,
+    PLAN_UPDATED,
+    PLAN_FEATURES_CHANGED,
+    SUBSCRIPTION_CREATED,
+    SUBSCRIPTION_CHANGED,
+    TENANT_FEATURE_OVERRIDE_CHANGED,
+    TENANT_BRANDING_CHANGED
 }

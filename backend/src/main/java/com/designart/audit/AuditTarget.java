@@ -21,6 +21,11 @@ public record AuditTarget(Long tenantId, Long userId, String email, AuditEntityT
         return new AuditTarget(user.getTenantId(), user.getId(), user.getEmail(), AuditEntityType.USER, user.getId());
     }
 
+    /** Alvo administrativo que NÃO é um usuário: tenant, plano, feature ou assinatura (só ids). */
+    public static AuditTarget entity(Long tenantId, AuditEntityType type, Long entityId) {
+        return new AuditTarget(tenantId, null, null, type, entityId);
+    }
+
     /** Sem alvo identificável (ex.: falha de login para conta inexistente). */
     public static AuditTarget none() {
         return new AuditTarget(null, null, null, null, null);

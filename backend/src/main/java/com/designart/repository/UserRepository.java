@@ -18,6 +18,9 @@ public interface UserRepository extends JpaRepository<User, Long> {
 
     boolean existsByEmail(String email);
 
+    /** Bootstrap do SUPER_ADMIN: existe algum usuário com esta role (independe de tenant). */
+    boolean existsByRole(com.designart.security.Role role);
+
     // Gestão de usuários dentro do painel (tenant-scoped). UserService só usa
     // os métodos abaixo — nunca findAll()/findById()/deleteById().
     List<User> findAllByTenantId(Long tenantId);

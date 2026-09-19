@@ -1,6 +1,9 @@
 package com.designart.audit;
 
 import com.designart.security.Permission;
+import com.designart.billing.OverrideEffect;
+import com.designart.billing.SubscriptionStatus;
+import com.designart.model.TenantStatus;
 import com.designart.security.Role;
 
 import java.util.Collection;
@@ -104,6 +107,36 @@ public final class AuditMetadata {
 
         public Builder reasons(Set<AuditReason> reasons) {
             fragments.put("reasons", array(reasons));
+            return this;
+        }
+
+        public Builder tenantStatusChange(TenantStatus from, TenantStatus to) {
+            fragments.put("tenantStatusFrom", quote(from));
+            fragments.put("tenantStatusTo", quote(to));
+            return this;
+        }
+
+        /** {@code from} nulo = assinatura criada agora. */
+        public Builder subscriptionStatusChange(SubscriptionStatus from, SubscriptionStatus to) {
+            fragments.put("subscriptionStatusFrom", quote(from));
+            fragments.put("subscriptionStatusTo", quote(to));
+            return this;
+        }
+
+        public Builder planChanged(boolean changed) {
+            fragments.put("planChanged", String.valueOf(changed));
+            return this;
+        }
+
+        /** {@code null} = override removido. */
+        public Builder overrideEffect(OverrideEffect effect) {
+            fragments.put("overrideEffect", quote(effect));
+            return this;
+        }
+
+        /** Quantidade de itens afetados (ex.: features de um plano). Só um número. */
+        public Builder itemCount(int count) {
+            fragments.put("count", String.valueOf(count));
             return this;
         }
 

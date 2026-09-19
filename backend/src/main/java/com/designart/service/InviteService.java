@@ -35,6 +35,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.TransactionDefinition;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.transaction.support.TransactionTemplate;
 
 import java.time.Clock;
@@ -74,55 +75,72 @@ public class InviteService {
     private final Clock clock;
 
     // ------------------------------------------------------------------ criar convite
+    /** Convite do TENANT_ADMIN: o tenant vem SEMPRE do contexto autenticado. */
     public UserDto invite(UsuarioRequest req) {
         Long tenantId = TenantContext.require();
         exigirEmailHabilitado();
         AuditActor ator = auditActors.current();
         rateLimit.enforce(RateLimitPolicy.INVITE_CREATE_ACTOR, String.valueOf(ator.userId()));
+        Tenant tenant = tenantRepository.findById(tenantId).orElseThrow(() -> new ResourceNotFoundException("Tenant não encontrado."));
 
+        TransactionTemplate tx = new TransactionTemplate(transactionManager);
+        ConvitePreparado c = tx.execute(status -> prepararConvite(tenantId, req, ator));
+
+        despachar(c, ator, tenant.getName());
+        return UserDto.from(c.usuario());
+    }
+
+    /**
+     * Cria o usuário PENDENTE (sem senha, inativo), o token INVITE e os eventos de auditoria, na
+     * transação JÁ ABERTA do chamador (que também pode persistir o tenant/assinatura na mesma unidade).
+     * NÃO envia e-mail: o envio é feito por {@link #despachar} DEPOIS do commit. O tenantId é decidido
+     * pelo chamador (contexto autenticado ou administração global), nunca pelo corpo da requisição.
+     * O papel deve pertencer a um tenant (SUPER_ADMIN é sempre recusado).
+     */
+    public ConvitePreparado prepararConvite(Long tenantId, UsuarioRequest req, AuditActor ator) {
+        if (!TransactionSynchronizationManager.isActualTransactionActive()) {
+            throw new IllegalStateException("prepararConvite exige transação ativa.");
+        }
         String email = UserRules.emailValido(req.getEmail());
         Role role = req.getRole() != null ? req.getRole() : Role.USER;
         UserRules.exigirRoleDeTenant(role);
         String ip = ipResolver.resolveCurrent();
-        Tenant tenant = tenantRepository.findById(tenantId).orElseThrow(() -> new ResourceNotFoundException("Tenant não encontrado."));
 
-        TransactionTemplate tx = new TransactionTemplate(transactionManager);
-        Convidado c = tx.execute(status -> {
-            if (userRepository.existsByEmail(email)) {
-                throw new ConflictException("Já existe um usuário com este e-mail.");
-            }
-            User pendente = User.builder()
-                    .email(email)
-                    .password(null)              // sem senha: nunca autentica antes do aceite
-                    .ativo(false)                // inativo até aceitar o convite
-                    .nomeCompleto(req.getNomeCompleto())
-                    .cargo(req.getCargo())
-                    .role(role)
-                    .permissoes(UserRules.permissoesEfetivas(role, req.getPermissoes()))
-                    .tenantId(tenantId)          // SEMPRE o tenant do administrador autenticado
-                    .build();
-            try {
-                pendente = userRepository.saveAndFlush(pendente);
-            } catch (DataIntegrityViolationException e) {
-                throw new ConflictException("Já existe um usuário com este e-mail.");
-            }
-            IssuedToken token = tokens.issue(pendente.getId(), ActionTokenPurpose.INVITE, ator.userId(), ip);
-            AuditTarget alvo = AuditTarget.user(pendente);
-            auditService.success(AuditAction.USER_CREATED, ator, alvo,
-                    AuditMetadata.builder().role(pendente.getRole()).permissions(pendente.getPermissoes())
-                            .activeChange(false, false).build());
-            auditService.success(AuditAction.INVITE_CREATED, ator, alvo,
-                    AuditMetadata.builder().role(pendente.getRole()).build());
-            return new Convidado(pendente, token);
-        });
-
-        enviarConvite(c.usuario(), c.token(), ator, tenant.getName());
-        return UserDto.from(c.usuario());
+        if (userRepository.existsByEmail(email)) {
+            throw new ConflictException("Já existe um usuário com este e-mail.");
+        }
+        User pendente = User.builder()
+                .email(email)
+                .password(null)              // sem senha: nunca autentica antes do aceite
+                .ativo(false)                // inativo até aceitar o convite
+                .nomeCompleto(req.getNomeCompleto())
+                .cargo(req.getCargo())
+                .role(role)
+                .permissoes(UserRules.permissoesEfetivas(role, req.getPermissoes()))
+                .tenantId(tenantId)
+                .build();
+        try {
+            pendente = userRepository.saveAndFlush(pendente);
+        } catch (DataIntegrityViolationException e) {
+            throw new ConflictException("Já existe um usuário com este e-mail.");
+        }
+        IssuedToken token = tokens.issue(pendente.getId(), ActionTokenPurpose.INVITE, ator.userId(), ip);
+        AuditTarget alvo = AuditTarget.user(pendente);
+        auditService.success(AuditAction.USER_CREATED, ator, alvo,
+                AuditMetadata.builder().role(pendente.getRole()).permissions(pendente.getPermissoes())
+                        .activeChange(false, false).build());
+        auditService.success(AuditAction.INVITE_CREATED, ator, alvo,
+                AuditMetadata.builder().role(pendente.getRole()).build());
+        return new ConvitePreparado(pendente, token);
     }
 
     // ------------------------------------------------------------------ reenviar
     public UserDto resend(Long userId) {
-        Long tenantId = TenantContext.require();
+        return resendFor(TenantContext.require(), userId);
+    }
+
+    /** Reenvia convite de um usuário pendente DESTE tenant (outro tenant => 404). */
+    public UserDto resendFor(Long tenantId, Long userId) {
         exigirEmailHabilitado();
         AuditActor ator = auditActors.current();
         rateLimit.enforce(RateLimitPolicy.INVITE_RESEND_ACTOR, String.valueOf(ator.userId()));
@@ -130,8 +148,8 @@ public class InviteService {
         String ip = ipResolver.resolveCurrent();
 
         TransactionTemplate tx = new TransactionTemplate(transactionManager);
-        Convidado c = tx.execute(status -> {
-            // Sempre filtrado pelo tenant do administrador: outro tenant => 404 (nunca vaza existência).
+        ConvitePreparado c = tx.execute(status -> {
+            // Sempre filtrado pelo tenant informado: outro tenant => 404 (nunca vaza existência).
             User pendente = userRepository.findByIdAndTenantId(userId, tenantId)
                     .orElseThrow(() -> new ResourceNotFoundException("Usuário não encontrado com ID: " + userId));
             if (!pendente.isPendingInvite()) {
@@ -140,10 +158,10 @@ public class InviteService {
             tokens.revokeActive(pendente.getId(), ActionTokenPurpose.INVITE); // só o token novo funciona
             IssuedToken token = tokens.issue(pendente.getId(), ActionTokenPurpose.INVITE, ator.userId(), ip);
             auditService.success(AuditAction.INVITE_RESENT, ator, AuditTarget.user(pendente), AuditMetadata.EMPTY);
-            return new Convidado(pendente, token);
+            return new ConvitePreparado(pendente, token);
         });
 
-        enviarConvite(c.usuario(), c.token(), ator, tenant.getName());
+        despachar(c, ator, tenant.getName());
         return UserDto.from(c.usuario());
     }
 
@@ -182,21 +200,26 @@ public class InviteService {
     }
 
     // ------------------------------------------------------------------ internos
-    private record Convidado(User usuario, IssuedToken token) {
+    /** Usuário pendente + token recém-emitido (o valor puro só vive em memória até o envio do e-mail). */
+    public record ConvitePreparado(User usuario, IssuedToken token) {
     }
 
     private static InvalidRequestException tokenInvalido() {
         return new InvalidRequestException(MSG_TOKEN_INVALIDO);
     }
 
-    private void exigirEmailHabilitado() {
+    /** Sem SMTP configurado nenhum token deve ser criado (evita convite sem e-mail): 503. */
+    public void exigirEmailHabilitado() {
         if (!dispatcher.isEnabled() || !links.isConfigured()) {
             throw new ServiceUnavailableException(
                     "O envio de e-mail não está configurado; não é possível enviar convites no momento.");
         }
     }
 
-    private void enviarConvite(User usuario, IssuedToken token, AuditActor convidante, String nomeTenant) {
+    /** Envia o e-mail FORA de qualquer transação; se falhar, revoga o token e audita (compensação). */
+    public void despachar(ConvitePreparado c, AuditActor convidante, String nomeTenant) {
+        User usuario = c.usuario();
+        IssuedToken token = c.token();
         String nomeConvidante = userRepository.findById(convidante.userId())
                 .map(User::getNomeCompleto).filter(n -> n != null && !n.isBlank()).orElse(convidante.email());
         dispatcher.dispatch(

@@ -419,9 +419,10 @@ class AuditIntegrationTest extends IntegrationTestBase {
         List<AuditEvent> criacoes = auditRepository.findByTargetTenantIdOrderByIdAsc(b.getId()).stream()
                 .filter(e -> e.getAction() == AuditAction.USER_CREATED).toList();
         assertThat(criacoes).extracting(AuditEvent::getTargetUserId).contains(idB).doesNotContain(idA);
-        // O tenant do ator sempre coincide com o tenant alvo dos eventos de gestão de usuários.
+        // O tenant do ator sempre coincide com o tenant alvo dos eventos de gestão de usuários de TENANT.
+        // (Exceção deliberada da 4.4.1: o SUPER_ADMIN, que não tem tenant, cria o TENANT_ADMIN inicial de uma empresa.)
         for (AuditEvent e : auditRepository.findAllByOrderByIdAsc()) {
-            if (e.getAction() == AuditAction.USER_CREATED) {
+            if (e.getAction() == AuditAction.USER_CREATED && e.getActorRole() != Role.SUPER_ADMIN) {
                 assertThat(e.getActorTenantId()).isEqualTo(e.getTargetTenantId());
             }
         }
@@ -454,7 +455,10 @@ class AuditIntegrationTest extends IntegrationTestBase {
         tentarLogin("desconhecido.meta@teste.local", "qualquer-senha-123");
 
         Set<String> chavesPermitidas = Set.of("roleFrom", "roleTo", "activeFrom", "activeTo", "permissions",
-                "permissionsAdded", "permissionsRemoved", "fields", "reasons");
+                "permissionsAdded", "permissionsRemoved", "fields", "reasons",
+                // Control Center (4.4.1): só enums, booleano e uma contagem inteira
+                "tenantStatusFrom", "tenantStatusTo", "subscriptionStatusFrom", "subscriptionStatusTo",
+                "planChanged", "overrideEffect", "count");
         int verificados = 0;
         for (AuditEvent e : auditRepository.findAllByOrderByIdAsc()) {
             if (e.getMetadata() == null) {
@@ -471,7 +475,7 @@ class AuditIntegrationTest extends IntegrationTestBase {
                 } else if (v.isTextual()) {
                     assertThat(v.asText()).matches("^[A-Z_]+$");
                 } else {
-                    assertThat(v.isBoolean()).isTrue();
+                    assertThat(v.isBoolean() || v.isNull() || v.isInt()).as("valor de metadata: " + v).isTrue();
                 }
             });
             verificados++;
