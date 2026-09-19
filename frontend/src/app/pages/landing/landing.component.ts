@@ -1,7 +1,9 @@
-import { Component, inject } from '@angular/core';
+import { Component, inject, signal, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { ThemeService } from '../../core/services/theme.service';
+import { ApiService } from '../../core/services/api.service';
+import { Avaliacao } from '../../core/models';
 import { RevealOnScrollDirective } from '../../shared/directives/reveal-on-scroll.directive';
 
 @Component({
@@ -136,76 +138,21 @@ import { RevealOnScrollDirective } from '../../shared/directives/reveal-on-scrol
       </section>
 
       <!-- SEÇÃO AVALIAÇÕES (Exatamente como em 16700.jpg) -->
-      <section class="section-container">
+      <section class="section-container" *ngIf="avaliacoes().length">
         <span class="section-badge-purple">AVALIAÇÕES</span>
         <h2 class="section-title-large">Quem trabalha conosco, confia e recomenda.</h2>
 
         <div class="testimonials-grid">
-          <div class="testimonial-card" appReveal>
+          <div class="testimonial-card" *ngFor="let avaliacao of avaliacoes(); let i = index" appReveal [appRevealDelay]="i * 80">
             <div class="stars-row">
-              <i class="bi bi-star-fill"></i>
-              <i class="bi bi-star-fill"></i>
-              <i class="bi bi-star-fill"></i>
-              <i class="bi bi-star-fill"></i>
-              <i class="bi bi-star-fill"></i>
+              <i class="bi bi-star-fill" *ngFor="let estrela of getEstrelas(avaliacao.nota)"></i>
             </div>
             <p class="testimonial-text">
-              "A Designarte organizou nossa comunicação e transformou completamente a forma como nos posicionamos e vendemos online."
+              "{{ avaliacao.texto }}"
             </p>
             <div class="testimonial-author">
-              <strong>Thaysa Wanderley</strong>
-              <span>CEO, Ateliê da Ysa</span>
-            </div>
-          </div>
-
-          <div class="testimonial-card" appReveal [appRevealDelay]="80">
-            <div class="stars-row">
-              <i class="bi bi-star-fill"></i>
-              <i class="bi bi-star-fill"></i>
-              <i class="bi bi-star-fill"></i>
-              <i class="bi bi-star-fill"></i>
-              <i class="bi bi-star-fill"></i>
-            </div>
-            <p class="testimonial-text">
-              "O time uniu estratégia comercial e estética de forma incrível. Cada entrega superava as nossas expectativas de qualidade."
-            </p>
-            <div class="testimonial-author">
-              <strong>Leo e Adrielle</strong>
-              <span>CEOs, VivaMais</span>
-            </div>
-          </div>
-
-          <div class="testimonial-card" appReveal [appRevealDelay]="160">
-            <div class="stars-row">
-              <i class="bi bi-star-fill"></i>
-              <i class="bi bi-star-fill"></i>
-              <i class="bi bi-star-fill"></i>
-              <i class="bi bi-star-fill"></i>
-              <i class="bi bi-star-fill"></i>
-            </div>
-            <p class="testimonial-text">
-              "Eles entenderam a alma da nossa marca e criaram uma presença digital elegante, clara, consistente e altamente conversível."
-            </p>
-            <div class="testimonial-author">
-              <strong>Alexandro Junior</strong>
-              <span>CEO, Sr. Junior</span>
-            </div>
-          </div>
-
-          <div class="testimonial-card" appReveal [appRevealDelay]="240">
-            <div class="stars-row">
-              <i class="bi bi-star-fill"></i>
-              <i class="bi bi-star-fill"></i>
-              <i class="bi bi-star-fill"></i>
-              <i class="bi bi-star-fill"></i>
-              <i class="bi bi-star-fill"></i>
-            </div>
-            <p class="testimonial-text">
-              "Eles entenderam a alma da nossa marca e criaram uma presença digital elegante"
-            </p>
-            <div class="testimonial-author">
-              <strong>Erico e Ana</strong>
-              <span>CEO, Drogaria Central</span>
+              <strong>{{ avaliacao.clienteNome }}</strong>
+              <span *ngIf="avaliacao.cargoEmpresa">{{ avaliacao.cargoEmpresa }}</span>
             </div>
           </div>
         </div>
@@ -222,12 +169,12 @@ import { RevealOnScrollDirective } from '../../shared/directives/reveal-on-scrol
         <div class="marquee-fade fade-right"></div>
         <div class="marquee-track">
           <div class="marquee-group">
-            <div class="client-logo-card" *ngFor="let cliente of clientLogos">
+            <div class="client-logo-card" *ngFor="let cliente of clientLogos()">
               <img [src]="cliente.src" [alt]="cliente.name" loading="lazy" />
             </div>
           </div>
           <div class="marquee-group" aria-hidden="true">
-            <div class="client-logo-card" *ngFor="let cliente of clientLogos">
+            <div class="client-logo-card" *ngFor="let cliente of clientLogos()">
               <img [src]="cliente.src" [alt]="cliente.name" loading="lazy" />
             </div>
           </div>
@@ -795,10 +742,29 @@ import { RevealOnScrollDirective } from '../../shared/directives/reveal-on-scrol
     .text-purple { color: #7c3aed; }
   `]
 })
-export class LandingComponent {
+export class LandingComponent implements OnInit {
   themeService = inject(ThemeService);
+  private api = inject(ApiService);
 
-  readonly clientLogos = [
+  avaliacoes = signal<Avaliacao[]>([]);
+
+  ngOnInit(): void {
+    // Multi-tenant (Fase 3): a API exige login, então visitante anônimo recebe
+    // 401 e a seção de depoimentos simplesmente não aparece (landing pública
+    // por tenant/domínio fica para uma fase futura).
+    this.api.getAvaliacoes(true).subscribe({
+      next: (res) => this.avaliacoes.set(res || []),
+      error: () => this.avaliacoes.set([]),
+    });
+    this.carregarClientesReais();
+  }
+
+  getEstrelas(nota: number): number[] {
+    const total = Math.max(0, Math.min(5, Math.round(nota || 0)));
+    return Array(total).fill(0);
+  }
+
+  readonly fallbackClientLogos = [
     { src: '/clients/panificacao-pf.png', name: 'Panificação P&F' },
     { src: '/clients/lucas-companheiro.png', name: 'Lucas Companheiro' },
     { src: '/clients/clinica-farmacia.png', name: 'Clínica & Farmácia' },
@@ -818,4 +784,24 @@ export class LandingComponent {
     { src: '/clients/dg-serralheria.png', name: 'DG Serralheria' },
     { src: '/clients/sao-joao-supermercado.png', name: 'Novo São João Supermercado' },
   ];
+
+  clientLogos = signal(this.fallbackClientLogos);
+
+  private carregarClientesReais(): void {
+    this.api.getClientes().subscribe({
+      next: (clientes) => {
+        const comLogo = (clientes || [])
+          .filter((c) => !!c.logoUrl)
+          .map((c) => ({ src: c.logoUrl as string, name: c.nome }));
+
+        // Mantém a vitrine com os clientes reais cadastrados no painel; se ainda
+        // não houver nenhum com logo, mostra a lista de exemplo como fallback.
+        if (comLogo.length) {
+          this.clientLogos.set(comLogo);
+        }
+      },
+      // Visitante anônimo (401): mantém a lista estática de fallback.
+      error: () => {},
+    });
+  }
 }

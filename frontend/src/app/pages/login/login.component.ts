@@ -51,25 +51,8 @@ import { getApiBaseUrl, setApiBaseUrl, resetApiBaseUrl, isCustomApiUrlSet, getDe
               Acesse com segurança para gerenciar roteiros no set, demandas de lojas parceiras, relatórios mensais e vendas de fotos.
             </p>
 
-            <div class="quick-profile-chips">
-              <span class="chips-title">Acesso rápido por perfil:</span>
-              <div class="chips-grid">
-                <button type="button" class="chip-btn" (click)="selecionarPerfil('admin')">
-                  <i class="bi bi-person-badge-fill"></i>
-                  <span>Admin</span>
-                </button>
-                <button type="button" class="chip-btn" (click)="selecionarPerfil('lucas.matheus')">
-                  <i class="bi bi-camera-reels-fill"></i>
-                  <span>Lucas (Roteiros)</span>
-                </button>
-                <button type="button" class="chip-btn" (click)="selecionarPerfil('edyllaine.silva')">
-                  <i class="bi bi-chat-square-heart-fill"></i>
-                  <span>Edyllaine (Mídias)</span>
-                </button>
-              </div>
-            </div>
           </div>
-          
+
           <div class="banner-footer-decor">
             <a routerLink="/" class="back-home-link">
               <i class="bi bi-arrow-left"></i>
@@ -95,7 +78,7 @@ import { getApiBaseUrl, setApiBaseUrl, resetApiBaseUrl, isCustomApiUrlSet, getDe
           <div *ngIf="backendStatus() === 'cold_start'" class="alert-info-box">
             <i class="bi bi-info-circle-fill"></i>
             <div>
-              <strong>Servidor gratuito no Render iniciando:</strong> O backend em nuvem pode levar até 50 segundos para despertar na primeira requisição. Você também pode entrar imediatamente no <em>Modo Demonstração</em>.
+              <strong>Servidor gratuito no Render iniciando:</strong> O backend em nuvem pode levar até 50 segundos para despertar na primeira requisição. Aguarde alguns instantes e tente novamente.
             </div>
           </div>
 
@@ -140,28 +123,11 @@ import { getApiBaseUrl, setApiBaseUrl, resetApiBaseUrl, isCustomApiUrlSet, getDe
               </div>
             </div>
 
-            <div class="quick-credentials-hint">
-              <i class="bi bi-shield-lock-fill"></i>
-              <span>Padrão inicial: <strong>admin</strong> | Senha: <strong>admin</strong></span>
-            </div>
-
             <button type="submit" class="btn btn-primary btn-submit mb-2" [disabled]="loading()">
               <span *ngIf="!loading()">Entrar no Sistema &rarr;</span>
               <span *ngIf="loading()" class="d-flex align-items-center justify-content-center gap-2">
                 <span class="spinner-border-sm"></span> Conectando...
               </span>
-            </button>
-
-            <!-- Botão de Acesso Imediato / Offline -->
-            <button 
-              type="button" 
-              class="btn btn-secondary btn-demo-access" 
-              (click)="onDemoLogin()"
-              [disabled]="loading()"
-              title="Acessa imediatamente sem aguardar o cold-start do servidor em nuvem"
-            >
-              <i class="bi bi-lightning-charge-fill text-warning"></i>
-              <span>Acessar Imediato (Modo Demonstração / Offline)</span>
             </button>
           </form>
 
@@ -421,47 +387,6 @@ import { getApiBaseUrl, setApiBaseUrl, resetApiBaseUrl, isCustomApiUrlSet, getDe
       margin-bottom: 1.5rem;
     }
 
-    .quick-profile-chips {
-      margin-top: 1rem;
-    }
-
-    .chips-title {
-      font-size: 0.75rem;
-      font-weight: 700;
-      color: rgba(255, 255, 255, 0.7);
-      display: block;
-      margin-bottom: 0.5rem;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-    }
-
-    .chips-grid {
-      display: flex;
-      flex-direction: column;
-      gap: 0.4rem;
-    }
-
-    .chip-btn {
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-      padding: 0.5rem 0.85rem;
-      background: rgba(255, 255, 255, 0.08);
-      border: 1px solid rgba(255, 255, 255, 0.15);
-      border-radius: var(--radius-md);
-      color: #FFFFFF;
-      font-size: 0.8rem;
-      font-weight: 600;
-      cursor: pointer;
-      text-align: left;
-      transition: all 0.15s;
-    }
-
-    .chip-btn:hover {
-      background: rgba(255, 255, 255, 0.2);
-      transform: translateX(4px);
-    }
-
     .back-home-link {
       color: rgba(255, 255, 255, 0.8);
       font-size: 0.85rem;
@@ -579,43 +504,12 @@ import { getApiBaseUrl, setApiBaseUrl, resetApiBaseUrl, isCustomApiUrlSet, getDe
       padding: 0.25rem;
     }
 
-    .quick-credentials-hint {
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-      padding: 0.5rem 0.75rem;
-      background: var(--color-primary-light);
-      border-radius: var(--radius-md);
-      font-size: 0.775rem;
-      color: var(--color-primary);
-      margin-bottom: 1.25rem;
-    }
-
     .btn-submit {
       width: 100%;
       padding: 0.85rem;
       font-size: 0.95rem;
       font-weight: 700;
       border-radius: var(--radius-md);
-    }
-
-    .btn-demo-access {
-      width: 100%;
-      padding: 0.65rem;
-      font-size: 0.825rem;
-      font-weight: 600;
-      border-radius: var(--radius-md);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 0.45rem;
-      background: var(--bg-surface-elevated);
-      border: 1px dashed var(--border-color);
-    }
-
-    .btn-demo-access:hover {
-      background: var(--bg-surface-hover);
-      border-color: var(--color-warning);
     }
 
     .alert-error {
@@ -856,7 +750,7 @@ export class LoginComponent implements OnInit {
       case 'cold_start':
         return 'Servidor Iniciando...';
       case 'offline':
-        return 'Modo Offline / Demo';
+        return 'Servidor Indisponível';
       default:
         return 'Verificando...';
     }
@@ -877,11 +771,6 @@ export class LoginComponent implements OnInit {
         }
       }
     });
-  }
-
-  selecionarPerfil(user: string): void {
-    this.username = user;
-    this.password = 'admin';
   }
 
   toggleShowPassword(): void {
@@ -905,16 +794,6 @@ export class LoginComponent implements OnInit {
       error: (err) => {
         this.loading.set(false);
         this.errorMessage.set(err.message || err.error?.message || 'Usuário ou senha incorretos.');
-      }
-    });
-  }
-
-  onDemoLogin(): void {
-    this.loading.set(true);
-    this.authService.loginDirectMock(this.username || 'admin').subscribe({
-      next: () => {
-        this.loading.set(false);
-        this.router.navigate(['/dashboard']);
       }
     });
   }

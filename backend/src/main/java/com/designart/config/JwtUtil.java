@@ -16,7 +16,11 @@ import java.util.function.Function;
 @Component
 public class JwtUtil {
 
-    @Value("${jwt.secret:9a3f91c78e45b86a12d90ef1456a782bc4910293847561a0b9c8d7e6f5a4b3c2}")
+    // Sem valor padrao no código: cada perfil (dev/prod) define sua propria
+    // origem em application-{profile}.properties. Em produção, a ausência de
+    // JWT_SECRET faz a aplicação falhar ao subir, em vez de usar um segredo
+    // previsível.
+    @Value("${jwt.secret}")
     private String secret;
 
     @Value("${jwt.expiration:86400000}")

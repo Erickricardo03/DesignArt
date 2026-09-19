@@ -25,13 +25,10 @@ public class AuthController {
 
     @GetMapping("/me")
     public ResponseEntity<UserDto> me(Authentication authentication) {
-        if (authentication == null) {
-            return ResponseEntity.ok(UserDto.builder()
-                    .username("admin")
-                    .nomeCompleto("Administrador")
-                    .role("ADMIN")
-                    .cargo("Diretor Geral")
-                    .build());
+        // Nunca fabrica usuário: sem autenticação real -> 401 (o SecurityConfig já
+        // exige login neste endpoint; esta checagem é defesa em profundidade).
+        if (authentication == null || !authentication.isAuthenticated()) {
+            throw new com.designart.exception.InvalidCredentialsException("Autenticação necessária.");
         }
         return ResponseEntity.ok(authService.getCurrentUser(authentication.getName()));
     }

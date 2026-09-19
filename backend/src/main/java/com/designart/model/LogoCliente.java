@@ -20,6 +20,12 @@ public class LogoCliente {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    // Tenant dono deste registro. NUNCA aceito diretamente do cliente/DTO —
+    // sempre atribuído pelo service a partir de TenantContext.require().
+    @Column(name = "tenant_id", nullable = false)
+    @com.fasterxml.jackson.annotation.JsonIgnore
+    private Long tenantId;
+
     @Column(nullable = false)
     private String clienteNome;
 
@@ -27,8 +33,12 @@ public class LogoCliente {
 
     private String formato; // PNG, SVG, JPG, EPS
 
-    @Lob
-    @Column(columnDefinition = "LONGTEXT")
+    // TEXT (sem @Lob): portátil entre H2 e PostgreSQL. "LONGTEXT" é um tipo
+    // MySQL que não existe no PostgreSQL — incompatibilidade real corrigida
+    // na Fase 2. @Lob + columnDefinition juntos também forçariam o Hibernate
+    // a tentar o tipo OID de large object do Postgres, que não é o que
+    // queremos para um base64 armazenado como texto comum.
+    @Column(columnDefinition = "TEXT")
     private String arquivoUrlOuBase64;
 
     private String tamanho;

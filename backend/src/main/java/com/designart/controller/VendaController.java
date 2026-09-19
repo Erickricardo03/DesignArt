@@ -4,6 +4,7 @@ import com.designart.model.VendaFoto;
 import com.designart.service.VendaService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -44,6 +45,7 @@ public class VendaController {
     }
 
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN') or hasAuthority('PERM_FINANCEIRO')")
     public ResponseEntity<Void> deletar(@PathVariable Long id) {
         vendaService.deletar(id);
         return ResponseEntity.noContent().build();

@@ -14,6 +14,10 @@ backend/target/
 *.war
 *.ear
 
+# Maven local: repositório/cache e settings apontando para caminhos da máquina
+.m2/
+.mvn-settings.xml
+
 # IDEs & System
 .idea/
 .vscode/

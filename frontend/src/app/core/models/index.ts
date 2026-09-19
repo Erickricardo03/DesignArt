@@ -7,6 +7,20 @@ export interface User {
   role: string;
   salario?: number;
   avatarUrl?: string;
+  permissoes?: string[];
+  ativo?: boolean;
+}
+
+export type ModuloAcesso = 'FINANCEIRO' | 'EQUIPE' | 'CONFIGURACOES';
+
+export interface UsuarioRequest {
+  username: string;
+  password?: string;
+  nomeCompleto: string;
+  cargo?: string;
+  role: 'ADMIN' | 'COLABORADOR';
+  permissoes: string[];
+  ativo?: boolean;
 }
 
 export interface LoginResponse {
@@ -198,6 +212,16 @@ export interface Colaborador {
   role: 'ADMIN' | 'OPERACIONAL' | 'EDITOR' | 'FOTOGRAFO' | 'CLIENTE';
   ativo: boolean;
   avatarUrl?: string;
+}
+
+export interface Avaliacao {
+  id?: number;
+  clienteNome: string;
+  cargoEmpresa?: string;
+  texto: string;
+  nota: number; // 1 a 5
+  ativo: boolean;
+  dataCriacao?: string;
 }
 
 export interface Municipio {

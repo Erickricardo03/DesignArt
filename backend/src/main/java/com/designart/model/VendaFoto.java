@@ -10,7 +10,7 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "vendas_fotos")
+@Table(name = "vendas_fotos", uniqueConstraints = @UniqueConstraint(name = "uk_vendas_fotos_tenant_codigo", columnNames = {"tenant_id", "codigo_venda"}))
 @Data
 @Builder
 @NoArgsConstructor
@@ -21,7 +21,16 @@ public class VendaFoto {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(unique = true)
+    // Tenant dono deste registro. NUNCA aceito diretamente do cliente/DTO —
+    // sempre atribuído pelo service a partir de TenantContext.require().
+    @Column(name = "tenant_id", nullable = false)
+    @com.fasterxml.jackson.annotation.JsonIgnore
+    private Long tenantId;
+
+    // Único POR TENANT, não globalmente — o código é gerado a partir do
+    // timestamp (ver VendaService), então dois tenants podem gerar o mesmo
+    // valor por coincidência; isso não pode fazer a venda de um tenant falhar
+    // por causa de um código de outro tenant completamente não relacionado.
     private String codigoVenda; // ex: #257168767
 
     private String clienteNome;

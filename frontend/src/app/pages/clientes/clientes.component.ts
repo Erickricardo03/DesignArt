@@ -70,19 +70,19 @@ import { SidebarComponent } from '../../shared/components/sidebar.component';
               <div class="marca-details">
                 <div class="detail-row">
                   <span class="detail-label">Contratos:</span>
-                  <span class="detail-value highlight-contract">{{ cliente.planoContrato || 'Plano Profissional ++' }}</span>
+                  <span class="detail-value highlight-contract">{{ cliente.planoContrato || '—' }}</span>
                 </div>
                 <div class="detail-row">
                   <span class="detail-label">Telefone:</span>
-                  <span class="detail-value">{{ cliente.telefone || '(82) 9985-3023' }}</span>
+                  <span class="detail-value">{{ cliente.telefone || '—' }}</span>
                 </div>
                 <div class="detail-row">
                   <span class="detail-label">Dia de Faturamento:</span>
-                  <span class="detail-value font-semibold">Dia {{ cliente.diaFaturamento || 17 }}</span>
+                  <span class="detail-value font-semibold">{{ cliente.diaFaturamento ? 'Dia ' + cliente.diaFaturamento : '—' }}</span>
                 </div>
                 <div class="detail-row">
                   <span class="detail-label">Valor Mensal:</span>
-                  <span class="detail-value price-tag">R$ {{ (cliente.valorMensal || 500).toFixed(2) }}</span>
+                  <span class="detail-value price-tag">{{ cliente.valorMensal ? 'R$ ' + cliente.valorMensal.toFixed(2) : '—' }}</span>
                 </div>
                 <div class="detail-row" *ngIf="cliente.municipio">
                   <span class="detail-label">Município:</span>
@@ -136,10 +136,10 @@ import { SidebarComponent } from '../../shared/components/sidebar.component';
             <div class="summary-top">
               <div>
                 <h3 class="client-name-bold">{{ clienteSelecionado()?.nome }}</h3>
-                <span class="vencimento-info">Vencimento: Dia {{ clienteSelecionado()?.diaFaturamento || 17 }}</span>
+                <span class="vencimento-info">Vencimento: {{ clienteSelecionado()?.diaFaturamento ? 'Dia ' + clienteSelecionado()?.diaFaturamento : '—' }}</span>
               </div>
               <div class="client-monthly-total">
-                R$ {{ (clienteSelecionado()?.valorMensal || 500).toFixed(2) }}
+                {{ clienteSelecionado()?.valorMensal ? 'R$ ' + clienteSelecionado()!.valorMensal!.toFixed(2) : '—' }}
               </div>
             </div>
 
@@ -280,7 +280,7 @@ import { SidebarComponent } from '../../shared/components/sidebar.component';
           <div class="form-grid-2">
             <div class="form-group">
               <label>TELEFONE / WHATSAPP</label>
-              <input type="text" [(ngModel)]="clienteForm.telefone" class="form-control" placeholder="Ex: (82) 9985-3023" />
+              <input type="text" [(ngModel)]="clienteForm.telefone" class="form-control" placeholder="(00) 00000-0000" />
             </div>
             <div class="form-group">
               <label>MUNICÍPIO DE ATENDIMENTO</label>
@@ -964,11 +964,7 @@ export class ClientesComponent implements OnInit {
   clienteForm: Partial<Cliente> = {
     nome: '',
     categoria: '',
-    planoContrato: 'Plano Profissional ++',
     telefone: '',
-    municipio: 'São Miguel dos Campos',
-    diaFaturamento: 17,
-    valorMensal: 500.0,
     logoUrl: '',
     status: 'ATIVO',
   };
@@ -1046,13 +1042,9 @@ export class ClientesComponent implements OnInit {
   openNovoClienteModal(): void {
     this.editandoClienteId = null;
     this.clienteForm = {
+      // Sem valores pré-preenchidos inventados: o usuário informa tudo.
       nome: '',
-      categoria: 'ACADEMIA',
-      planoContrato: 'Plano Profissional ++',
-      telefone: '(82) 9985-3023',
-      municipio: 'São Miguel dos Campos',
-      diaFaturamento: 17,
-      valorMensal: 500.0,
+      telefone: '',
       logoUrl: '',
       status: 'ATIVO',
     };
@@ -1106,7 +1098,7 @@ export class ClientesComponent implements OnInit {
     this.novaFatura = {
       dataVencimento: `2026-09-${String(cliente.diaFaturamento || 17).padStart(2, '0')}`,
       dataPagamento: '',
-      valor: cliente.valorMensal || 500,
+      valor: cliente.valorMensal || 0,
       status: 'Pendente',
     };
     this.faturaModalOpen.set(true);

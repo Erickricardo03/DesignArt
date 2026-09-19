@@ -60,7 +60,7 @@ import { NavigationService } from '../../core/services/navigation.service';
           <span>SERVIÇOS</span>
         </a>
 
-        <a routerLink="/equipe" routerLinkActive="active" class="nav-item" (click)="onNavClick()">
+        <a *ngIf="temAcesso('EQUIPE')" routerLink="/equipe" routerLinkActive="active" class="nav-item" (click)="onNavClick()">
           <i class="bi bi-people"></i>
           <span>EQUIPE</span>
         </a>
@@ -85,7 +85,7 @@ import { NavigationService } from '../../core/services/navigation.service';
           <span>CALENDÁRIO</span>
         </a>
 
-        <a routerLink="/financeiro" routerLinkActive="active" class="nav-item" (click)="onNavClick()">
+        <a *ngIf="temAcesso('FINANCEIRO')" routerLink="/financeiro" routerLinkActive="active" class="nav-item" (click)="onNavClick()">
           <i class="bi bi-shield-check"></i>
           <span>FINANCEIRO</span>
         </a>
@@ -100,7 +100,7 @@ import { NavigationService } from '../../core/services/navigation.service';
           <span>HISTÓRICO</span>
         </a>
 
-        <a routerLink="/configuracoes" routerLinkActive="active" class="nav-item" (click)="onNavClick()">
+        <a *ngIf="temAcesso('CONFIGURACOES')" routerLink="/configuracoes" routerLinkActive="active" class="nav-item" (click)="onNavClick()">
           <i class="bi bi-gear"></i>
           <span>CONFIGURAÇÕES</span>
         </a>
@@ -123,7 +123,7 @@ import { NavigationService } from '../../core/services/navigation.service';
         <i class="bi bi-briefcase"></i>
         <span>Clientes</span>
       </a>
-      <a routerLink="/financeiro" routerLinkActive="active" class="mobile-nav-btn" (click)="onNavClick()">
+      <a *ngIf="temAcesso('FINANCEIRO')" routerLink="/financeiro" routerLinkActive="active" class="mobile-nav-btn" (click)="onNavClick()">
         <i class="bi bi-currency-dollar"></i>
         <span>Financeiro</span>
       </a>
@@ -397,6 +397,14 @@ export class SidebarComponent {
 
   onNavClick(): void {
     this.navService.closeMobileSidebar();
+  }
+
+  isAdmin(): boolean {
+    return this.authService.currentUser()?.role === 'ADMIN';
+  }
+
+  temAcesso(modulo: 'FINANCEIRO' | 'EQUIPE' | 'CONFIGURACOES'): boolean {
+    return this.isAdmin() || !!this.authService.currentUser()?.permissoes?.includes(modulo);
   }
 
   logout(): void {

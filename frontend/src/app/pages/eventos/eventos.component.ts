@@ -156,7 +156,7 @@ import { Evento, FotoEvento } from '../../core/models';
           <div class="modal-body">
             <div class="form-group">
               <label class="form-label">NOME DO EVENTO</label>
-              <input type="text" class="form-control" [(ngModel)]="formEvento.nome" name="nome" required placeholder="Ex: BARRA RUN 2026" />
+              <input type="text" class="form-control" [(ngModel)]="formEvento.nome" name="nome" required placeholder="Nome do evento" />
             </div>
 
             <div class="form-group">

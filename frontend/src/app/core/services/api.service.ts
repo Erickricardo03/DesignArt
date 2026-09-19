@@ -1,8 +1,10 @@
-import { Injectable, inject } from '@angular/core';
+import { Injectable, inject, signal } from '@angular/core';
 import { HttpClient, HttpHeaders, HttpParams } from '@angular/common/http';
-import { Observable, of, timeout, catchError, tap } from 'rxjs';
+import { Observable, of, timeout, catchError, tap, throwError } from 'rxjs';
 import { getApiBaseUrl } from './api-config';
 import { MockStorageService } from './mock-storage.service';
+import { IMockStorage } from './mock-storage.contract';
+import { environment } from '../../../environments/environment';
 import {
   Tarefa,
   Roteiro,
@@ -22,6 +24,9 @@ import {
   ConfiguracaoLoja,
   AtividadeHistorico,
   SaudeFinanceira,
+  Avaliacao,
+  User,
+  UsuarioRequest,
 } from '../models';
 
 @Injectable({
@@ -29,13 +34,25 @@ import {
 })
 export class ApiService {
   private http = inject(HttpClient);
-  private mockDb = inject(MockStorageService);
+  // Tipado pela interface (não pela classe concreta) de propósito: assim o
+  // ApiService só enxerga o contrato comum entre a implementação de DEV
+  // (dados fictícios completos) e o stub de PROD (sem dados nenhum), que são
+  // trocadas via fileReplacements no build — ver mock-storage.contract.ts.
+  private mockDb: IMockStorage = inject(MockStorageService);
 
   private isBackendOnline = false;
   private hasCheckedOnlineStatus = false;
   private isChecking = false;
 
   private readonly FAST_TIMEOUT_MS = 800;
+  private readonly PROD_TIMEOUT_MS = 15000;
+
+  /**
+   * true quando a última chamada à API falhou em produção. A UI (ver
+   * SystemStatusBannerComponent) usa isso para avisar o usuário e oferecer
+   * "tentar novamente" — nunca para exibir dados inventados no lugar.
+   */
+  connectionError = signal<boolean>(false);
 
   constructor() {
     this.checkHealthQuietly();
@@ -81,25 +98,49 @@ export class ApiService {
   }
 
   /**
-   * Wrapper universal ultra rápido:
-   * Se o backend estiver offline ou não responder imediatamente, retorna instantaneamente (0ms) os dados locais.
+   * Wrapper universal para todas as chamadas à API.
+   *
+   * Em DESENVOLVIMENTO: se o backend estiver offline ou não responder rápido,
+   * cai instantaneamente para os dados locais de `MockStorageService` — só
+   * para não travar o trabalho de quem está codando sem o backend rodando.
+   *
+   * Em PRODUÇÃO: `fallbackFn` nunca é chamada. Um erro de rede vira um erro
+   * real propagado ao chamador (para a tela mostrar um estado de erro de
+   * verdade, com opção de tentar de novo) — jamais dados fictícios.
    */
   private execute<T>(httpCall: Observable<T>, fallbackFn: () => T): Observable<T> {
-    if (this.hasCheckedOnlineStatus && !this.isBackendOnline) {
-      // 🚀 RESPOSTA INSTANTÂNEA EM 0ms!
-      return of(fallbackFn());
+    if (!environment.production) {
+      if (this.hasCheckedOnlineStatus && !this.isBackendOnline) {
+        // 🚀 RESPOSTA INSTANTÂNEA EM 0ms! (somente em desenvolvimento)
+        return of(fallbackFn());
+      }
+
+      return httpCall.pipe(
+        timeout(this.FAST_TIMEOUT_MS),
+        tap(() => {
+          this.isBackendOnline = true;
+          this.hasCheckedOnlineStatus = true;
+        }),
+        catchError(() => {
+          this.isBackendOnline = false;
+          this.hasCheckedOnlineStatus = true;
+          return of(fallbackFn());
+        })
+      );
     }
 
     return httpCall.pipe(
-      timeout(this.FAST_TIMEOUT_MS),
+      timeout(this.PROD_TIMEOUT_MS),
       tap(() => {
         this.isBackendOnline = true;
         this.hasCheckedOnlineStatus = true;
+        this.connectionError.set(false);
       }),
-      catchError(() => {
+      catchError((err) => {
         this.isBackendOnline = false;
         this.hasCheckedOnlineStatus = true;
-        return of(fallbackFn());
+        this.connectionError.set(true);
+        return throwError(() => err);
       })
     );
   }
@@ -269,6 +310,60 @@ export class ApiService {
       this.http.delete<boolean>(`${this.baseUrl}/equipe/${id}`, { headers: this.getHeaders() }),
       () => local
     );
+  }
+
+  // === AVALIAÇÕES DE CLIENTES (Depoimentos) ===
+  getAvaliacoes(apenasAtivas = false): Observable<Avaliacao[]> {
+    let params = new HttpParams();
+    if (apenasAtivas) params = params.set('apenasAtivas', 'true');
+
+    return this.execute(
+      this.http.get<Avaliacao[]>(`${this.baseUrl}/avaliacoes`, { headers: this.getHeaders(), params }),
+      () => this.mockDb.getAvaliacoes(apenasAtivas)
+    );
+  }
+
+  createAvaliacao(avaliacao: Partial<Avaliacao>): Observable<Avaliacao> {
+    const local = this.mockDb.createAvaliacao(avaliacao);
+    return this.execute(
+      this.http.post<Avaliacao>(`${this.baseUrl}/avaliacoes`, avaliacao, { headers: this.getHeaders() }),
+      () => local
+    );
+  }
+
+  updateAvaliacao(id: number, avaliacao: Partial<Avaliacao>): Observable<Avaliacao> {
+    const local = this.mockDb.updateAvaliacao(id, avaliacao);
+    return this.execute(
+      this.http.put<Avaliacao>(`${this.baseUrl}/avaliacoes/${id}`, avaliacao, { headers: this.getHeaders() }),
+      () => local
+    );
+  }
+
+  deleteAvaliacao(id: number): Observable<boolean> {
+    const local = this.mockDb.deleteAvaliacao(id);
+    return this.execute(
+      this.http.delete<boolean>(`${this.baseUrl}/avaliacoes/${id}`, { headers: this.getHeaders() }),
+      () => local
+    );
+  }
+
+  // === USUÁRIOS & PERMISSÕES (gestão de acesso da equipe, apenas ADMIN) ===
+  // Sem fallback local: um usuário "criado" só offline não conseguiria logar de verdade,
+  // então aqui é melhor expor o erro de conexão do que fingir sucesso.
+  getUsuarios(): Observable<User[]> {
+    return this.http.get<User[]>(`${this.baseUrl}/usuarios`, { headers: this.getHeaders() });
+  }
+
+  createUsuario(usuario: UsuarioRequest): Observable<User> {
+    return this.http.post<User>(`${this.baseUrl}/usuarios`, usuario, { headers: this.getHeaders() });
+  }
+
+  updateUsuario(id: number, usuario: Partial<UsuarioRequest>): Observable<User> {
+    return this.http.put<User>(`${this.baseUrl}/usuarios/${id}`, usuario, { headers: this.getHeaders() });
+  }
+
+  deleteUsuario(id: number): Observable<void> {
+    return this.http.delete<void>(`${this.baseUrl}/usuarios/${id}`, { headers: this.getHeaders() });
   }
 
   // === MUNICÍPIOS ===

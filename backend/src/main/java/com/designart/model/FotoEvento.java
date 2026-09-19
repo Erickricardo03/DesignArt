@@ -22,12 +22,21 @@ public class FotoEvento {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    // Tenant dono deste registro, denormalizado do Evento pai: existe um
+    // endpoint (DELETE /api/eventos/fotos/{fotoId}) que acessa a foto
+    // diretamente por ID sem passar pelo evento — sem tenant_id próprio aqui,
+    // ele não teria como ser filtrado por tenant.
+    @Column(name = "tenant_id", nullable = false)
+    @com.fasterxml.jackson.annotation.JsonIgnore
+    private Long tenantId;
+
     private String codigoFoto; // ex: BR26-001
 
     private String titulo;
 
-    @Lob
-    @Column(columnDefinition = "LONGTEXT")
+    // TEXT (sem @Lob): ver LogoCliente.arquivoUrlOuBase64 — "LONGTEXT" não
+    // existe no PostgreSQL.
+    @Column(columnDefinition = "TEXT")
     private String urlOuBase64;
 
     @Builder.Default

@@ -121,7 +121,7 @@ import { RelatorioMensalItem } from '../../core/models';
                       </span>
                     </td>
                     <td class="col-criador">
-                      <span class="creator-name">{{ item.criadorNome || 'Lucas Matheus' }}</span>
+                      <span class="creator-name">{{ item.criadorNome || '—' }}</span>
                     </td>
                     <td class="col-participantes">
                       <div class="participantes-list">

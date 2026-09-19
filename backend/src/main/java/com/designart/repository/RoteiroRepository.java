@@ -1,14 +1,13 @@
 package com.designart.repository;
 
 import com.designart.model.Roteiro;
-import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
 
 @Repository
-public interface RoteiroRepository extends JpaRepository<Roteiro, Long> {
-    List<Roteiro> findAllByOrderByDataCriacaoDesc();
-    List<Roteiro> findByLojaIgnoreCase(String loja);
-    List<Roteiro> findByStatus(String status);
+public interface RoteiroRepository extends TenantScopedRepository<Roteiro> {
+    List<Roteiro> findAllByTenantIdOrderByDataCriacaoDesc(Long tenantId);
+    List<Roteiro> findByTenantIdAndLojaIgnoreCase(Long tenantId, String loja);
+    List<Roteiro> findByTenantIdAndStatus(Long tenantId, String status);
 }

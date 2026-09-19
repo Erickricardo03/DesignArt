@@ -25,6 +25,12 @@ public class Evento {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    // Tenant dono deste registro. NUNCA aceito diretamente do cliente/DTO —
+    // sempre atribuído pelo service a partir de TenantContext.require().
+    @Column(name = "tenant_id", nullable = false)
+    @com.fasterxml.jackson.annotation.JsonIgnore
+    private Long tenantId;
+
     @Column(nullable = false)
     private String nome; // Ex: BARRA RUN 2026
 
@@ -39,8 +45,9 @@ public class Evento {
 
     private Integer publicoEstimado; // Ex: 500
 
-    @Lob
-    @Column(columnDefinition = "LONGTEXT")
+    // TEXT (sem @Lob): ver LogoCliente.arquivoUrlOuBase64 — "LONGTEXT" não
+    // existe no PostgreSQL.
+    @Column(columnDefinition = "TEXT")
     private String bannerUrl;
 
     @Column(columnDefinition = "TEXT")

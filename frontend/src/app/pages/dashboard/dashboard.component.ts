@@ -77,7 +77,7 @@ import { RevealOnScrollDirective } from '../../shared/directives/reveal-on-scrol
               <div class="status-label">EM DESENVOLVIMENTO</div>
             </div>
 
-            <div class="status-card bg-em-revisao" routerLink="/tarefas" [queryParams]="{status: 'EM_REVISAO'}">
+            <div class="status-card bg-em-revisao" routerLink="/tarefas" [queryParams]="{status: 'EM_REVISAO_OU_NAO_HOMOLOGADA'}">
               <div class="status-header">
                 <span class="status-number" [appCountUp]="stats()?.emRevisaoOuNaoHomologada || 0"></span>
                 <i class="bi bi-eye-fill"></i>
@@ -120,6 +120,7 @@ import { RevealOnScrollDirective } from '../../shared/directives/reveal-on-scrol
 
               <!-- Barras do Gráfico em SVG Moderno -->
               <div class="custom-bar-chart">
+                <p class="text-muted" *ngIf="!temProducao()">Ainda não há atendimentos registrados neste ano.</p>
                 <div class="chart-bars-container">
                   <div class="chart-bar-col" *ngFor="let item of stats()?.producaoMensal">
                     <div class="bar-value-hover" *ngIf="item.atendimentos > 0">
@@ -148,7 +149,10 @@ import { RevealOnScrollDirective } from '../../shared/directives/reveal-on-scrol
               </div>
 
               <div class="ranking-list">
-                <div 
+                <p class="text-muted" *ngIf="!stats()?.rankingColaboradores?.length">
+                  Nenhuma tarefa concluída por colaboradores ainda.
+                </p>
+                <div
                   class="ranking-item" 
                   *ngFor="let colab of stats()?.rankingColaboradores; let i = index"
                 >
@@ -183,7 +187,7 @@ import { RevealOnScrollDirective } from '../../shared/directives/reveal-on-scrol
                 <div>
                   <span class="metric-title">Ganhos no mês</span>
                   <h2 class="metric-value text-success">
-                    R$ {{ (stats()?.ganhosNoMes || 202.50) | number:'1.2-2' }}
+                    R$ {{ (stats()?.ganhosNoMes || 0) | number:'1.2-2' }}
                   </h2>
                 </div>
               </div>
@@ -195,7 +199,7 @@ import { RevealOnScrollDirective } from '../../shared/directives/reveal-on-scrol
                 <div>
                   <span class="metric-title">A receber</span>
                   <h2 class="metric-value text-warning">
-                    R$ {{ (stats()?.aReceber || 202.50) | number:'1.2-2' }}
+                    R$ {{ (stats()?.aReceber || 0) | number:'1.2-2' }}
                   </h2>
                 </div>
               </div>
@@ -207,7 +211,7 @@ import { RevealOnScrollDirective } from '../../shared/directives/reveal-on-scrol
                 <div>
                   <span class="metric-title">Visitas na páginas</span>
                   <h2 class="metric-value">
-                    <span [appCountUp]="stats()?.visitasNaPagina || 324"></span>
+                    <span [appCountUp]="stats()?.visitasNaPagina || 0"></span>
                   </h2>
                 </div>
               </div>
@@ -223,6 +227,7 @@ import { RevealOnScrollDirective } from '../../shared/directives/reveal-on-scrol
               </div>
 
               <div class="sales-list">
+                <p class="text-muted" *ngIf="!stats()?.ultimasVendas?.length">Nenhuma venda registrada ainda.</p>
                 <div class="sale-item" *ngFor="let venda of stats()?.ultimasVendas">
                   <div class="sale-client-info">
                     <h4>{{ venda.clienteNome }}</h4>
@@ -808,13 +813,18 @@ export class DashboardComponent implements OnInit {
     });
   }
 
+  temProducao(): boolean {
+    return (this.stats()?.producaoMensal ?? []).some((m) => m.atendimentos > 0);
+  }
+
+  // Escalas relativas aos próprios dados (sem teto fixo inventado).
   getBarHeight(value: number): number {
-    const max = 4000;
-    return Math.min(100, Math.max(8, (value / max) * 100));
+    const max = Math.max(0, ...(this.stats()?.producaoMensal ?? []).map((m) => m.atendimentos));
+    return max > 0 && value > 0 ? Math.max(8, (value / max) * 100) : 0;
   }
 
   getColabBarWidth(tarefas: number): number {
-    const max = 650;
-    return Math.min(100, Math.max(10, (tarefas / max) * 100));
+    const max = Math.max(0, ...(this.stats()?.rankingColaboradores ?? []).map((c) => c.totalTarefasConcluidas));
+    return max > 0 && tarefas > 0 ? Math.max(10, (tarefas / max) * 100) : 0;
   }
 }

@@ -1080,9 +1080,31 @@ textarea.form-control {
 /* Print Styles */
 @media print {
   @page {
-    size: portrait;
+    size: A4 portrait;
     margin: 8mm;
   }
+
+  /* Força o tema claro na impressão, mesmo com o modo escuro ativo na tela.
+     Sem isso, elementos que usam var(--bg-surface)/var(--text-primary) saem
+     com fundo escuro/preto no papel porque as variáveis de tema não mudam
+     automaticamente para @media print. */
+  :root,
+  html[data-theme="dark"],
+  body.dark-theme {
+    --bg-app: #FFFFFF !important;
+    --bg-primary: #FFFFFF !important;
+    --bg-surface: #FFFFFF !important;
+    --card-bg: #FFFFFF !important;
+    --sidebar-bg: #FFFFFF !important;
+    --bg-surface-elevated: #F1F5F9 !important;
+    --bg-surface-hover: #E2E8F0 !important;
+    --border-color: #CBD5E1 !important;
+    --border-subtle: #94A3B8 !important;
+    --text-primary: #0F172A !important;
+    --text-secondary: #334155 !important;
+    --text-muted: #64748B !important;
+  }
+
   .sidebar, .navbar, .btn, .no-print, .table-scroll-hint {
     display: none !important;
   }
@@ -1095,6 +1117,8 @@ textarea.form-control {
     max-width: 100% !important;
   }
   .card {
+    background: #FFFFFF !important;
+    color: #000000 !important;
     border: 1px solid #CCCCCC !important;
     box-shadow: none !important;
     break-inside: avoid;
@@ -1102,6 +1126,10 @@ textarea.form-control {
     width: 100% !important;
     max-width: 100% !important;
     overflow: visible !important;
+  }
+  * {
+    box-shadow: none !important;
+    text-shadow: none !important;
   }
   .table-responsive {
     overflow: visible !important;

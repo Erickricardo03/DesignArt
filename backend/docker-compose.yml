@@ -1,0 +1,25 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: nexus-design-postgres-local
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DB_NAME:-nexus_design}
+      POSTGRES_USER: ${DB_USER:-nexus_design_user}
+      # Somente para uso LOCAL de desenvolvimento — nunca aponta para o
+      # PostgreSQL real de producao. Sobrescreva com a variavel DB_PASSWORD
+      # se quiser outra senha local.
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres_local_dev_only}
+    ports:
+      # Amarrado só em localhost — não expõe a porta do banco publicamente.
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - nexus_design_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  nexus_design_pgdata:

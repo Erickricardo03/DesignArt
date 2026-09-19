@@ -1,5 +1,6 @@
 import { Routes } from '@angular/router';
 import { authGuard } from './core/guards/auth.guard';
+import { moduleAccessGuard } from './core/guards/module-access.guard';
 
 export const routes: Routes = [
   {
@@ -39,7 +40,7 @@ export const routes: Routes = [
   {
     path: 'equipe',
     loadComponent: () => import('./pages/equipe/equipe.component').then((m) => m.EquipeComponent),
-    canActivate: [authGuard],
+    canActivate: [authGuard, moduleAccessGuard('EQUIPE')],
     title: 'Gestão de Equipe & Salários | Design Arte',
   },
   {
@@ -69,7 +70,7 @@ export const routes: Routes = [
   {
     path: 'financeiro',
     loadComponent: () => import('./pages/financeiro/financeiro.component').then((m) => m.FinanceiroComponent),
-    canActivate: [authGuard],
+    canActivate: [authGuard, moduleAccessGuard('FINANCEIRO')],
     title: 'Financeiro, Faturas & Fluxo | Design Arte',
   },
   {
@@ -87,7 +88,7 @@ export const routes: Routes = [
   {
     path: 'configuracoes',
     loadComponent: () => import('./pages/configuracoes/configuracoes.component').then((m) => m.ConfiguracoesComponent),
-    canActivate: [authGuard],
+    canActivate: [authGuard, moduleAccessGuard('CONFIGURACOES')],
     title: 'Configurações & Municípios | Design Arte',
   },
   {

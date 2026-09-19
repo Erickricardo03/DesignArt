@@ -1,12 +1,11 @@
 package com.designart.controller;
 
 import com.designart.model.Cliente;
-import com.designart.repository.ClienteRepository;
+import com.designart.service.ClienteService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.time.LocalDateTime;
 import java.util.List;
 
 @RestController
@@ -15,44 +14,31 @@ import java.util.List;
 @CrossOrigin(origins = "*")
 public class ClienteController {
 
-    private final ClienteRepository clienteRepository;
+    private final ClienteService clienteService;
 
     @GetMapping
     public ResponseEntity<List<Cliente>> listar() {
-        return ResponseEntity.ok(clienteRepository.findAllByOrderByNomeAsc());
+        return ResponseEntity.ok(clienteService.listarTodos());
     }
 
     @GetMapping("/{id}")
     public ResponseEntity<Cliente> buscarPorId(@PathVariable Long id) {
-        return clienteRepository.findById(id)
-                .map(ResponseEntity::ok)
-                .orElse(ResponseEntity.notFound().build());
+        return ResponseEntity.ok(clienteService.buscarPorId(id));
     }
 
     @PostMapping
     public ResponseEntity<Cliente> criar(@RequestBody Cliente cliente) {
-        cliente.setDataCadastro(LocalDateTime.now());
-        return ResponseEntity.ok(clienteRepository.save(cliente));
+        return ResponseEntity.ok(clienteService.criar(cliente));
     }
 
     @PutMapping("/{id}")
     public ResponseEntity<Cliente> atualizar(@PathVariable Long id, @RequestBody Cliente dados) {
-        return clienteRepository.findById(id)
-                .map(cliente -> {
-                    cliente.setNome(dados.getNome());
-                    cliente.setSegmento(dados.getSegmento());
-                    cliente.setContato(dados.getContato());
-                    cliente.setTelefone(dados.getTelefone());
-                    cliente.setEmail(dados.getEmail());
-                    cliente.setLogoUrl(dados.getLogoUrl());
-                    return ResponseEntity.ok(clienteRepository.save(cliente));
-                })
-                .orElse(ResponseEntity.notFound().build());
+        return ResponseEntity.ok(clienteService.atualizar(id, dados));
     }
 
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deletar(@PathVariable Long id) {
-        clienteRepository.deleteById(id);
+        clienteService.deletar(id);
         return ResponseEntity.noContent().build();
     }
 }

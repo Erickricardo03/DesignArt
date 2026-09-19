@@ -3,7 +3,10 @@ package com.designart.config;
 import com.designart.model.*;
 import com.designart.repository.*;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
+import org.springframework.core.env.Environment;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 
@@ -13,10 +16,25 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * Inicializador de dados.
+ * <p>
+ * Dois mecanismos INDEPENDENTES protegem produção de receber dados fictícios:
+ * 1) a propriedade {@code app.seed-demo-data} (false por padrão, só "true" no
+ *    perfil dev);
+ * 2) a checagem direta do perfil ativo via {@link Environment}, que recusa
+ *    rodar sob o perfil "prod" mesmo que a propriedade acima seja mal configurada.
+ */
+@Slf4j
 @Component
 @RequiredArgsConstructor
 public class DataInitializer implements CommandLineRunner {
 
+    // Tenant FICTÍCIO de desenvolvimento local (perfil dev, H2 em memória).
+    // Nunca é criado em produção — ver checagens de perfil em run().
+    private static final String DEV_TENANT_SLUG = "dev-local";
+
+    private final TenantRepository tenantRepository;
     private final UserRepository userRepository;
     private final ClienteRepository clienteRepository;
     private final TarefaRepository tarefaRepository;
@@ -26,58 +44,90 @@ public class DataInitializer implements CommandLineRunner {
     private final FotoEventoRepository fotoEventoRepository;
     private final VendaFotoRepository vendaFotoRepository;
     private final DespesaRepository despesaRepository;
+    private final AvaliacaoRepository avaliacaoRepository;
     private final PasswordEncoder passwordEncoder;
+    private final Environment environment;
+
+    @Value("${app.seed-demo-data:false}")
+    private boolean seedDemoData;
+
+    @Value("${dev.admin.username:}")
+    private String devAdminUsername;
+
+    @Value("${dev.admin.password:}")
+    private String devAdminPassword;
 
     @Override
     public void run(String... args) {
-        inicializarUsuarios();
-        inicializarClientes();
-        inicializarTarefas();
-        inicializarRoteiros();
-        inicializarLogos();
-        inicializarEventosEFotos();
-        inicializarVendas();
-        inicializarDespesas();
-    }
+        inicializarUsuarioDevOpcional();
 
-    private void inicializarUsuarios() {
-        if (userRepository.count() == 0) {
-            // Usuário admin / admin conforme solicitado
-            userRepository.save(User.builder()
-                    .username("admin")
-                    .password(passwordEncoder.encode("admin"))
-                    .nomeCompleto("Administrador do Sistema")
-                    .email("admin@designarte.com.br")
-                    .cargo("Diretor Geral & Estrategista")
-                    .role("ADMIN")
-                    .ativo(true)
-                    .build());
-
-            userRepository.save(User.builder()
-                    .username("lucas.matheus")
-                    .password(passwordEncoder.encode("admin"))
-                    .nomeCompleto("Lucas Matheus")
-                    .email("lucas@designarte.com.br")
-                    .cargo("Roteirista & Criador de Conteúdo")
-                    .role("COLABORADOR")
-                    .ativo(true)
-                    .build());
-
-            userRepository.save(User.builder()
-                    .username("edyllaine.silva")
-                    .password(passwordEncoder.encode("admin"))
-                    .nomeCompleto("Edyllaine Silva")
-                    .email("edyllaine@designarte.com.br")
-                    .cargo("Social Media & Community Manager")
-                    .role("COLABORADOR")
-                    .ativo(true)
-                    .build());
+        boolean producao = environment.matchesProfiles("prod");
+        if (producao || !seedDemoData) {
+            log.info("Seed de dados de demonstração DESATIVADO (perfil de produção ou app.seed-demo-data=false). " +
+                    "Banco iniciado sem dados fictícios de negócio.");
+            return;
         }
+
+        log.warn("Seed de dados de DEMONSTRAÇÃO ativado — use isso apenas em ambiente de desenvolvimento.");
+        Long tenantId = obterOuCriarTenantDev().getId();
+        inicializarClientes(tenantId);
+        inicializarTarefas(tenantId);
+        inicializarRoteiros(tenantId);
+        inicializarLogos(tenantId);
+        inicializarEventosEFotos(tenantId);
+        inicializarVendas(tenantId);
+        inicializarDespesas(tenantId);
+        inicializarAvaliacoes(tenantId);
     }
 
-    private void inicializarClientes() {
-        if (clienteRepository.count() == 0) {
-            clienteRepository.save(Cliente.builder()
+    /**
+     * Cria, opcionalmente, UM usuário administrador de conveniência para
+     * desenvolvimento local — nunca em produção, nunca com senha fixa no
+     * código. Só age se DEV_ADMIN_USERNAME/DEV_ADMIN_PASSWORD estiverem
+     * definidas como variável de ambiente e ainda não existir nenhum usuário.
+     * A criação segura do primeiro SUPER_ADMIN real é escopo da Fase 4.
+     */
+    private void inicializarUsuarioDevOpcional() {
+        if (environment.matchesProfiles("prod")) {
+            return;
+        }
+        if (userRepository.count() > 0) {
+            return;
+        }
+        if (devAdminUsername == null || devAdminUsername.isBlank()
+                || devAdminPassword == null || devAdminPassword.isBlank()) {
+            log.warn("Nenhum usuário cadastrado e as variáveis de ambiente DEV_ADMIN_USERNAME/DEV_ADMIN_PASSWORD " +
+                    "não foram definidas. O backend iniciará SEM nenhum login disponível até que você defina essas " +
+                    "variáveis (apenas para desenvolvimento) ou implemente o bootstrap seguro do SUPER_ADMIN (Fase 4).");
+            return;
+        }
+
+        String username = devAdminUsername.trim().toLowerCase();
+        userRepository.save(User.builder()
+                .tenantId(obterOuCriarTenantDev().getId())
+                .username(username)
+                .password(passwordEncoder.encode(devAdminPassword))
+                .nomeCompleto("Administrador (Dev)")
+                .email(username + "@nexusdevelopment.tech")
+                .cargo("Administrador de Desenvolvimento")
+                .role("ADMIN")
+                .ativo(true)
+                .build());
+        log.warn("Usuário administrador de DESENVOLVIMENTO criado a partir de variáveis de ambiente ({}).", username);
+    }
+
+    /** Só chamado fora de produção (checagens de perfil acima). */
+    private Tenant obterOuCriarTenantDev() {
+        return tenantRepository.findBySlug(DEV_TENANT_SLUG)
+                .orElseGet(() -> tenantRepository.save(Tenant.builder()
+                        .name("Tenant de Desenvolvimento (fictício)")
+                        .slug(DEV_TENANT_SLUG)
+                        .build()));
+    }
+
+    private void inicializarClientes(Long tenantId) {
+        if (clienteRepository.countByTenantId(tenantId) == 0) {
+            clienteRepository.save(Cliente.builder().tenantId(tenantId)
                     .nome("JM MODA FITNESS")
                     .segmento("Moda & Fitness")
                     .contato("Carlos Mendes")
@@ -85,7 +135,7 @@ public class DataInitializer implements CommandLineRunner {
                     .email("contato@jmmodafitness.com.br")
                     .build());
 
-            clienteRepository.save(Cliente.builder()
+            clienteRepository.save(Cliente.builder().tenantId(tenantId)
                     .nome("ATELIÊ DA YSA")
                     .segmento("Moda Feminina & Costura Criativa")
                     .contato("Ysadora Lima")
@@ -93,7 +143,7 @@ public class DataInitializer implements CommandLineRunner {
                     .email("ysa@ateliedaysa.com.br")
                     .build());
 
-            clienteRepository.save(Cliente.builder()
+            clienteRepository.save(Cliente.builder().tenantId(tenantId)
                     .nome("ÓTICAS PRIME")
                     .segmento("Saúde Visual & Moda")
                     .contato("Roberto Albuquerque")
@@ -101,7 +151,7 @@ public class DataInitializer implements CommandLineRunner {
                     .email("prime@oticasprime.com.br")
                     .build());
 
-            clienteRepository.save(Cliente.builder()
+            clienteRepository.save(Cliente.builder().tenantId(tenantId)
                     .nome("BARRA RUN")
                     .segmento("Eventos Esportivos & Maratonas")
                     .contato("Organização Barra Run")
@@ -111,10 +161,10 @@ public class DataInitializer implements CommandLineRunner {
         }
     }
 
-    private void inicializarTarefas() {
-        if (tarefaRepository.count() == 0) {
+    private void inicializarTarefas(Long tenantId) {
+        if (tarefaRepository.countByTenantId(tenantId) == 0) {
             // Tarefa 1: Produção de conteúdo de marketing - Ateliê da Ysa (Mock exato da Página 2 e 3 do PDF)
-            Tarefa t1 = Tarefa.builder()
+            Tarefa t1 = Tarefa.builder().tenantId(tenantId)
                     .titulo("Produção de conteúdo de marketing")
                     .loja("ATELIÊ DA YSA")
                     .status("EM_DESENVOLVIMENTO")
@@ -142,7 +192,7 @@ public class DataInitializer implements CommandLineRunner {
             );
 
             for (int i = 0; i < itensT1.size(); i++) {
-                t1.getChecklist().add(TarefaChecklistItem.builder()
+                t1.getChecklist().add(TarefaChecklistItem.builder().tenantId(tenantId)
                         .descricao(itensT1.get(i))
                         .concluido(i < 2) // Primeiros 2 concluídos (Planejar conteúdo e Criar roteiro)
                         .ordem(i + 1)
@@ -152,7 +202,7 @@ public class DataInitializer implements CommandLineRunner {
             tarefaRepository.save(t1);
 
             // Tarefa 2: JM MODA FITNESS
-            Tarefa t2 = Tarefa.builder()
+            Tarefa t2 = Tarefa.builder().tenantId(tenantId)
                     .titulo("Gravação Coleção Fitness Inverno")
                     .loja("JM MODA FITNESS")
                     .status("EM_REVISAO")
@@ -167,7 +217,7 @@ public class DataInitializer implements CommandLineRunner {
 
             List<String> itensT2 = List.of("Elaborar Roteiro", "Gravação no Set", "Edição e Color Grading", "Aprovação do Cliente");
             for (int i = 0; i < itensT2.size(); i++) {
-                t2.getChecklist().add(TarefaChecklistItem.builder()
+                t2.getChecklist().add(TarefaChecklistItem.builder().tenantId(tenantId)
                         .descricao(itensT2.get(i))
                         .concluido(i < 3)
                         .ordem(i + 1)
@@ -177,7 +227,7 @@ public class DataInitializer implements CommandLineRunner {
             tarefaRepository.save(t2);
 
             // Tarefa 3: Tarefa atrasada para teste de alerta
-            Tarefa t3 = Tarefa.builder()
+            Tarefa t3 = Tarefa.builder().tenantId(tenantId)
                     .titulo("Reformulação de Catálogo Digital")
                     .loja("ÓTICAS PRIME")
                     .status("A_FAZER")
@@ -191,7 +241,7 @@ public class DataInitializer implements CommandLineRunner {
             tarefaRepository.save(t3);
 
             // Tarefa 4: Tarefa próxima do vencimento
-            Tarefa t4 = Tarefa.builder()
+            Tarefa t4 = Tarefa.builder().tenantId(tenantId)
                     .titulo("Roteirização e Captação de Depoimentos")
                     .loja("JM MODA FITNESS")
                     .status("EM_DESENVOLVIMENTO")
@@ -206,9 +256,9 @@ public class DataInitializer implements CommandLineRunner {
         }
     }
 
-    private void inicializarRoteiros() {
-        if (roteiroRepository.count() == 0) {
-            roteiroRepository.save(Roteiro.builder()
+    private void inicializarRoteiros(Long tenantId) {
+        if (roteiroRepository.countByTenantId(tenantId) == 0) {
+            roteiroRepository.save(Roteiro.builder().tenantId(tenantId)
                     .titulo("NOVO ESPAÇO FITNESS | JM MODA FITNESS")
                     .loja("JM MODA FITNESS")
                     .criadorNome("LUCAS MATHEUS")
@@ -219,7 +269,7 @@ public class DataInitializer implements CommandLineRunner {
                     .observacoesSet("Lente 24-70mm f/2.8, iluminação em 5600K com bastões RGB azuis. Levar microfone de lapela sem fio.")
                     .build());
 
-            roteiroRepository.save(Roteiro.builder()
+            roteiroRepository.save(Roteiro.builder().tenantId(tenantId)
                     .titulo("LANÇAMENTO COLEÇÃO PRIMAVERA | ATELIÊ DA YSA")
                     .loja("ATELIÊ DA YSA")
                     .criadorNome("LUCAS MATHEUS")
@@ -232,9 +282,9 @@ public class DataInitializer implements CommandLineRunner {
         }
     }
 
-    private void inicializarLogos() {
-        if (logoClienteRepository.count() == 0) {
-            logoClienteRepository.save(LogoCliente.builder()
+    private void inicializarLogos(Long tenantId) {
+        if (logoClienteRepository.countByTenantId(tenantId) == 0) {
+            logoClienteRepository.save(LogoCliente.builder().tenantId(tenantId)
                     .clienteNome("JM MODA FITNESS")
                     .variante("Logo Principal Colorida")
                     .formato("PNG")
@@ -243,7 +293,7 @@ public class DataInitializer implements CommandLineRunner {
                     .arquivoUrlOuBase64("https://images.unsplash.com/photo-1517838277536-f5f99be501cd?w=400&auto=format&fit=crop&q=60")
                     .build());
 
-            logoClienteRepository.save(LogoCliente.builder()
+            logoClienteRepository.save(LogoCliente.builder().tenantId(tenantId)
                     .clienteNome("ATELIÊ DA YSA")
                     .variante("Versão Negativa Branca")
                     .formato("SVG")
@@ -252,7 +302,7 @@ public class DataInitializer implements CommandLineRunner {
                     .arquivoUrlOuBase64("https://images.unsplash.com/photo-1490481651871-ab68de25d43d?w=400&auto=format&fit=crop&q=60")
                     .build());
 
-            logoClienteRepository.save(LogoCliente.builder()
+            logoClienteRepository.save(LogoCliente.builder().tenantId(tenantId)
                     .clienteNome("ÓTICAS PRIME")
                     .variante("Símbolo & Marca")
                     .formato("PNG")
@@ -263,9 +313,9 @@ public class DataInitializer implements CommandLineRunner {
         }
     }
 
-    private void inicializarEventosEFotos() {
-        if (eventoRepository.count() == 0) {
-            Evento e1 = Evento.builder()
+    private void inicializarEventosEFotos(Long tenantId) {
+        if (eventoRepository.countByTenantId(tenantId) == 0) {
+            Evento e1 = Evento.builder().tenantId(tenantId)
                     .nome("BARRA RUN 2026")
                     .localizacao("Barra de São Miguel - AL, Brasil")
                     .dataEvento(LocalDate.of(2026, 8, 1))
@@ -286,7 +336,7 @@ public class DataInitializer implements CommandLineRunner {
             );
 
             for (int i = 0; i < fotosMock.size(); i++) {
-                e1.getFotos().add(FotoEvento.builder()
+                e1.getFotos().add(FotoEvento.builder().tenantId(tenantId)
                         .codigoFoto("BR26-" + String.format("%03d", i + 1))
                         .titulo("Corrida 10k - Ponto Km 3 #" + (i + 1))
                         .urlOuBase64(fotosMock.get(i))
@@ -301,10 +351,10 @@ public class DataInitializer implements CommandLineRunner {
         }
     }
 
-    private void inicializarVendas() {
-        if (vendaFotoRepository.count() == 0) {
+    private void inicializarVendas(Long tenantId) {
+        if (vendaFotoRepository.countByTenantId(tenantId) == 0) {
             // Mock exato da Página 4 e 5 do PDF
-            vendaFotoRepository.save(VendaFoto.builder()
+            vendaFotoRepository.save(VendaFoto.builder().tenantId(tenantId)
                     .codigoVenda("#257168767")
                     .clienteNome("Adrianny Evelyn")
                     .eventoNome("BARRA RUN 2026")
@@ -316,7 +366,7 @@ public class DataInitializer implements CommandLineRunner {
                     .dataVenda(LocalDateTime.of(2026, 7, 27, 19, 42))
                     .build());
 
-            vendaFotoRepository.save(VendaFoto.builder()
+            vendaFotoRepository.save(VendaFoto.builder().tenantId(tenantId)
                     .codigoVenda("#257157586")
                     .clienteNome("Jadiel Soares")
                     .eventoNome("BARRA RUN 2026")
@@ -328,7 +378,7 @@ public class DataInitializer implements CommandLineRunner {
                     .dataVenda(LocalDateTime.of(2026, 7, 27, 19, 19))
                     .build());
 
-            vendaFotoRepository.save(VendaFoto.builder()
+            vendaFotoRepository.save(VendaFoto.builder().tenantId(tenantId)
                     .codigoVenda("#257146110")
                     .clienteNome("Emanoella Esterfanny")
                     .eventoNome("BARRA RUN 2026")
@@ -340,7 +390,7 @@ public class DataInitializer implements CommandLineRunner {
                     .dataVenda(LocalDateTime.of(2026, 7, 27, 15, 0))
                     .build());
 
-            vendaFotoRepository.save(VendaFoto.builder()
+            vendaFotoRepository.save(VendaFoto.builder().tenantId(tenantId)
                     .codigoVenda("#257145261")
                     .clienteNome("Michellandy Melo dos Santos")
                     .eventoNome("BARRA RUN 2026")
@@ -352,7 +402,7 @@ public class DataInitializer implements CommandLineRunner {
                     .dataVenda(LocalDateTime.of(2026, 7, 27, 14, 43))
                     .build());
 
-            vendaFotoRepository.save(VendaFoto.builder()
+            vendaFotoRepository.save(VendaFoto.builder().tenantId(tenantId)
                     .codigoVenda("#257139503")
                     .clienteNome("Jessyka Marques")
                     .eventoNome("BARRA RUN 2026")
@@ -364,7 +414,7 @@ public class DataInitializer implements CommandLineRunner {
                     .dataVenda(LocalDateTime.of(2026, 7, 27, 13, 3))
                     .build());
 
-            vendaFotoRepository.save(VendaFoto.builder()
+            vendaFotoRepository.save(VendaFoto.builder().tenantId(tenantId)
                     .codigoVenda("#257126789")
                     .clienteNome("Adrielle Santos")
                     .eventoNome("BARRA RUN 2026")
@@ -376,7 +426,7 @@ public class DataInitializer implements CommandLineRunner {
                     .dataVenda(LocalDateTime.of(2026, 7, 27, 12, 10))
                     .build());
 
-            vendaFotoRepository.save(VendaFoto.builder()
+            vendaFotoRepository.save(VendaFoto.builder().tenantId(tenantId)
                     .codigoVenda("#257114145")
                     .clienteNome("Beatriz Ferreira")
                     .eventoNome("BARRA RUN 2026")
@@ -388,7 +438,7 @@ public class DataInitializer implements CommandLineRunner {
                     .dataVenda(LocalDateTime.of(2026, 7, 27, 11, 36))
                     .build());
 
-            vendaFotoRepository.save(VendaFoto.builder()
+            vendaFotoRepository.save(VendaFoto.builder().tenantId(tenantId)
                     .codigoVenda("#257033145")
                     .clienteNome("Thacylla Cavalcante")
                     .eventoNome("BARRA RUN 2026")
@@ -400,7 +450,7 @@ public class DataInitializer implements CommandLineRunner {
                     .dataVenda(LocalDateTime.of(2026, 7, 27, 11, 33))
                     .build());
 
-            vendaFotoRepository.save(VendaFoto.builder()
+            vendaFotoRepository.save(VendaFoto.builder().tenantId(tenantId)
                     .codigoVenda("#257023677")
                     .clienteNome("João Pedro Pagrian")
                     .eventoNome("BARRA RUN 2026")
@@ -412,7 +462,7 @@ public class DataInitializer implements CommandLineRunner {
                     .dataVenda(LocalDateTime.of(2026, 7, 27, 8, 55))
                     .build());
 
-            vendaFotoRepository.save(VendaFoto.builder()
+            vendaFotoRepository.save(VendaFoto.builder().tenantId(tenantId)
                     .codigoVenda("#257023604")
                     .clienteNome("Mariana Correia")
                     .eventoNome("BARRA RUN 2026")
@@ -426,9 +476,9 @@ public class DataInitializer implements CommandLineRunner {
         }
     }
 
-    private void inicializarDespesas() {
-        if (despesaRepository.count() == 0) {
-            despesaRepository.save(Despesa.builder()
+    private void inicializarDespesas(Long tenantId) {
+        if (despesaRepository.countByTenantId(tenantId) == 0) {
+            despesaRepository.save(Despesa.builder().tenantId(tenantId)
                     .descricao("Locação de Lentes Cinema 50mm / 85mm")
                     .categoria("Equipamentos")
                     .valor(new BigDecimal("450.00"))
@@ -438,7 +488,7 @@ public class DataInitializer implements CommandLineRunner {
                     .observacoes("Lentes para gravação da JM Fitness")
                     .build());
 
-            despesaRepository.save(Despesa.builder()
+            despesaRepository.save(Despesa.builder().tenantId(tenantId)
                     .descricao("Combustível e Deslocamento Equipe Barra Run")
                     .categoria("Transporte")
                     .valor(new BigDecimal("280.00"))
@@ -447,7 +497,7 @@ public class DataInitializer implements CommandLineRunner {
                     .status("PAGO")
                     .build());
 
-            despesaRepository.save(Despesa.builder()
+            despesaRepository.save(Despesa.builder().tenantId(tenantId)
                     .descricao("Assinatura Mensal Adobe Creative Cloud Team")
                     .categoria("Software/Assinaturas")
                     .valor(new BigDecimal("680.00"))
@@ -456,13 +506,49 @@ public class DataInitializer implements CommandLineRunner {
                     .status("PAGO")
                     .build());
 
-            despesaRepository.save(Despesa.builder()
+            despesaRepository.save(Despesa.builder().tenantId(tenantId)
                     .descricao("Cachê Fotógrafo Convidado - Barra Run")
                     .categoria("Equipe/Cachês")
                     .valor(new BigDecimal("800.00"))
                     .dataDespesa(LocalDate.of(2026, 8, 1))
                     .formaPagamento("PIX")
                     .status("PAGO")
+                    .build());
+        }
+    }
+
+    private void inicializarAvaliacoes(Long tenantId) {
+        if (avaliacaoRepository.countByTenantId(tenantId) == 0) {
+            avaliacaoRepository.save(Avaliacao.builder().tenantId(tenantId)
+                    .clienteNome("Thaysa Wanderley")
+                    .cargoEmpresa("CEO, Ateliê da Ysa")
+                    .texto("A Designarte organizou nossa comunicação e transformou completamente a forma como nos posicionamos e vendemos online.")
+                    .nota(5)
+                    .ativo(true)
+                    .build());
+
+            avaliacaoRepository.save(Avaliacao.builder().tenantId(tenantId)
+                    .clienteNome("Leo e Adrielle")
+                    .cargoEmpresa("CEOs, VivaMais")
+                    .texto("O time uniu estratégia comercial e estética de forma incrível. Cada entrega superava as nossas expectativas de qualidade.")
+                    .nota(5)
+                    .ativo(true)
+                    .build());
+
+            avaliacaoRepository.save(Avaliacao.builder().tenantId(tenantId)
+                    .clienteNome("Alexandro Junior")
+                    .cargoEmpresa("CEO, Sr. Junior")
+                    .texto("Eles entenderam a alma da nossa marca e criaram uma presença digital elegante, clara, consistente e altamente conversível.")
+                    .nota(5)
+                    .ativo(true)
+                    .build());
+
+            avaliacaoRepository.save(Avaliacao.builder().tenantId(tenantId)
+                    .clienteNome("Erico e Ana")
+                    .cargoEmpresa("CEO, Drogaria Central")
+                    .texto("Eles entenderam a alma da nossa marca e criaram uma presença digital elegante")
+                    .nota(5)
+                    .ativo(true)
                     .build());
         }
     }

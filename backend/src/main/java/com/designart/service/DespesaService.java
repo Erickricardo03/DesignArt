@@ -5,6 +5,8 @@ import com.designart.model.Despesa;
 import com.designart.model.VendaFoto;
 import com.designart.repository.DespesaRepository;
 import com.designart.repository.VendaFotoRepository;
+import com.designart.exception.ResourceNotFoundException;
+import com.designart.tenant.TenantContext;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -24,17 +26,19 @@ public class DespesaService {
 
     @Transactional(readOnly = true)
     public List<Despesa> listarTodas() {
-        return despesaRepository.findAllByOrderByDataDespesaDesc();
+        return despesaRepository.findAllByTenantIdOrderByDataDespesaDesc(TenantContext.require());
     }
 
     @Transactional(readOnly = true)
     public Despesa buscarPorId(Long id) {
-        return despesaRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Despesa não encontrada com ID: " + id));
+        return despesaRepository.findByIdAndTenantId(id, TenantContext.require())
+                .orElseThrow(() -> new ResourceNotFoundException("Despesa não encontrada com ID: " + id));
     }
 
     @Transactional
     public Despesa criar(Despesa despesa) {
+        despesa.setId(null);
+        despesa.setTenantId(TenantContext.require());
         if (despesa.getDataRegistro() == null) {
             despesa.setDataRegistro(LocalDateTime.now());
         }
@@ -62,13 +66,16 @@ public class DespesaService {
 
     @Transactional
     public void deletar(Long id) {
-        despesaRepository.deleteById(id);
+        if (despesaRepository.deleteByIdAndTenantId(id, TenantContext.require()) == 0) {
+            throw new ResourceNotFoundException("Despesa não encontrada com ID: " + id);
+        }
     }
 
     @Transactional(readOnly = true)
     public FluxoCaixaDto obterFluxoCaixa() {
-        List<VendaFoto> vendas = vendaFotoRepository.findAll();
-        List<Despesa> despesas = despesaRepository.findAll();
+        Long tenantId = TenantContext.require();
+        List<VendaFoto> vendas = vendaFotoRepository.findAllByTenantId(tenantId);
+        List<Despesa> despesas = despesaRepository.findAllByTenantIdOrderByDataDespesaDesc(tenantId);
 
         BigDecimal totalEntradas = vendas.stream()
                 .filter(v -> "PAGO".equalsIgnoreCase(v.getStatus()))
@@ -87,19 +94,27 @@ public class DespesaService {
         String[] mesesAbrev = {"Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"};
 
         List<FluxoCaixaDto.FluxoMesDto> comparativos = new ArrayList<>();
-        // Valores demonstrativos baseados no PDF para o histórico dos meses
-        BigDecimal[] entradasHist = {
-                new BigDecimal("3200.00"), new BigDecimal("4500.00"), new BigDecimal("5800.00"),
-                new BigDecimal("6200.00"), new BigDecimal("5900.00"), new BigDecimal("7400.00"),
-                new BigDecimal("8200.00"), new BigDecimal("9100.00"), new BigDecimal("0.00"),
-                new BigDecimal("0.00"), new BigDecimal("0.00"), new BigDecimal("0.00")
-        };
-        BigDecimal[] saidasHist = {
-                new BigDecimal("1200.00"), new BigDecimal("1800.00"), new BigDecimal("2100.00"),
-                new BigDecimal("2400.00"), new BigDecimal("2200.00"), new BigDecimal("2900.00"),
-                new BigDecimal("3100.00"), new BigDecimal("3400.00"), new BigDecimal("0.00"),
-                new BigDecimal("0.00"), new BigDecimal("0.00"), new BigDecimal("0.00")
-        };
+        // Histórico mensal do ano corrente calculado SOMENTE com vendas/despesas
+        // PAGAS reais do tenant. Sem movimentação, todos os meses ficam em zero.
+        int ano = java.time.LocalDate.now().getYear();
+        BigDecimal[] entradasHist = new BigDecimal[12];
+        BigDecimal[] saidasHist = new BigDecimal[12];
+        java.util.Arrays.fill(entradasHist, BigDecimal.ZERO);
+        java.util.Arrays.fill(saidasHist, BigDecimal.ZERO);
+        for (VendaFoto v : vendas) {
+            if ("PAGO".equalsIgnoreCase(v.getStatus()) && v.getDataVenda() != null
+                    && v.getDataVenda().getYear() == ano && v.getValorTotal() != null) {
+                int m = v.getDataVenda().getMonthValue() - 1;
+                entradasHist[m] = entradasHist[m].add(v.getValorTotal());
+            }
+        }
+        for (Despesa d : despesas) {
+            if ("PAGO".equalsIgnoreCase(d.getStatus()) && d.getDataDespesa() != null
+                    && d.getDataDespesa().getYear() == ano && d.getValor() != null) {
+                int m = d.getDataDespesa().getMonthValue() - 1;
+                saidasHist[m] = saidasHist[m].add(d.getValor());
+            }
+        }
 
         for (int i = 0; i < 12; i++) {
             BigDecimal ent = entradasHist[i];

@@ -49,6 +49,7 @@ import { Tarefa, ChecklistItem, Municipio, Cliente } from '../../core/models';
                   <option value="EM_DESENVOLVIMENTO">Em Desenvolvimento</option>
                   <option value="EM_REVISAO">Em Revisão</option>
                   <option value="NAO_HOMOLOGADA">Não Homologada</option>
+                  <option value="EM_REVISAO_OU_NAO_HOMOLOGADA">Em Revisão / Não Homologada</option>
                   <option value="ATRASADA">Atrasadas</option>
                   <option value="CONCLUIDA">Concluídas</option>
                 </select>
@@ -1111,13 +1112,33 @@ export class TarefasComponent implements OnInit {
   };
 
   ngOnInit(): void {
-    this.carregarTarefas();
+    // Lê o status vindo dos cards clicáveis do Dashboard (?status=...) e já
+    // carrega a lista filtrada. Também reage a novos cliques enquanto a
+    // página já está aberta, já que o Angular reaproveita o componente.
+    this.route.queryParams.subscribe((params) => {
+      this.filtroStatus = params['status'] || '';
+      this.carregarTarefas();
+    });
     this.carregarMunicipios();
   }
 
   carregarTarefas(): void {
-    this.api.getTarefas(this.filtroLoja, this.filtroStatus, this.filtroPrioridade).subscribe((res) => {
-      this.tarefas.set(res);
+    // "ATRASADA" e o combinado "EM_REVISAO_OU_NAO_HOMOLOGADA" não existem como
+    // valor de status real nas tarefas (atraso é calculado pela data de entrega,
+    // e o combinado soma dois status) — por isso pedimos tudo e filtramos aqui,
+    // igual ao cálculo usado nos cards do Dashboard.
+    const statusEspecial = this.filtroStatus === 'ATRASADA' || this.filtroStatus === 'EM_REVISAO_OU_NAO_HOMOLOGADA';
+    const statusParaApi = statusEspecial ? '' : this.filtroStatus;
+
+    this.api.getTarefas(this.filtroLoja, statusParaApi, this.filtroPrioridade).subscribe((res) => {
+      if (this.filtroStatus === 'ATRASADA') {
+        const hoje = new Date().toISOString().slice(0, 10);
+        this.tarefas.set(res.filter((t) => t.status !== 'CONCLUIDA' && !!t.dataEntrega && t.dataEntrega < hoje));
+      } else if (this.filtroStatus === 'EM_REVISAO_OU_NAO_HOMOLOGADA') {
+        this.tarefas.set(res.filter((t) => t.status === 'EM_REVISAO' || t.status === 'NAO_HOMOLOGADA'));
+      } else {
+        this.tarefas.set(res);
+      }
     });
   }
 

@@ -1,7 +1,9 @@
 package com.designart.service;
 
+import com.designart.exception.ResourceNotFoundException;
 import com.designart.model.VendaFoto;
 import com.designart.repository.VendaFotoRepository;
+import com.designart.tenant.TenantContext;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -17,25 +19,28 @@ public class VendaService {
 
     @Transactional(readOnly = true)
     public List<VendaFoto> listarTodas(String status) {
+        Long tenantId = TenantContext.require();
         if (status != null && !status.isBlank() && !"TODOS".equalsIgnoreCase(status)) {
-            return vendaFotoRepository.findByStatusOrderByDataVendaDesc(status.toUpperCase());
+            return vendaFotoRepository.findByTenantIdAndStatusOrderByDataVendaDesc(tenantId, status.toUpperCase());
         }
-        return vendaFotoRepository.findAllByOrderByDataVendaDesc();
+        return vendaFotoRepository.findAllByTenantIdOrderByDataVendaDesc(tenantId);
     }
 
     @Transactional(readOnly = true)
     public List<VendaFoto> ultimasVendas() {
-        return vendaFotoRepository.findTop10ByOrderByDataVendaDesc();
+        return vendaFotoRepository.findTop10ByTenantIdOrderByDataVendaDesc(TenantContext.require());
     }
 
     @Transactional(readOnly = true)
     public VendaFoto buscarPorId(Long id) {
-        return vendaFotoRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Venda não encontrada com ID: " + id));
+        return vendaFotoRepository.findByIdAndTenantId(id, TenantContext.require())
+                .orElseThrow(() -> new ResourceNotFoundException("Venda não encontrada com ID: " + id));
     }
 
     @Transactional
     public VendaFoto criar(VendaFoto venda) {
+        venda.setId(null);
+        venda.setTenantId(TenantContext.require());
         if (venda.getCodigoVenda() == null || venda.getCodigoVenda().isBlank()) {
             venda.setCodigoVenda("#" + (System.currentTimeMillis() % 1000000000L));
         }
@@ -57,6 +62,8 @@ public class VendaService {
 
     @Transactional
     public void deletar(Long id) {
-        vendaFotoRepository.deleteById(id);
+        if (vendaFotoRepository.deleteByIdAndTenantId(id, TenantContext.require()) == 0) {
+            throw new ResourceNotFoundException("Venda não encontrada com ID: " + id);
+        }
     }
 }

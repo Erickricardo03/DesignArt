@@ -7,8 +7,8 @@ import com.designart.dto.ProducaoMensalDto;
 import com.designart.model.Tarefa;
 import com.designart.model.VendaFoto;
 import com.designart.repository.TarefaRepository;
-import com.designart.repository.UserRepository;
 import com.designart.repository.VendaFotoRepository;
+import com.designart.tenant.TenantContext;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -24,14 +24,14 @@ public class DashboardService {
 
     private final TarefaRepository tarefaRepository;
     private final VendaFotoRepository vendaFotoRepository;
-    private final UserRepository userRepository;
 
     @Transactional(readOnly = true)
     public DashboardStatsDto getDashboardStats() {
         LocalDate hoje = LocalDate.now();
         LocalDate limiteProximas = hoje.plusDays(3);
 
-        List<Tarefa> todas = tarefaRepository.findAll();
+        Long tenantId = TenantContext.require();
+        List<Tarefa> todas = tarefaRepository.findAllByTenantId(tenantId);
 
         long aFazer = todas.stream().filter(t -> "A_FAZER".equalsIgnoreCase(t.getStatus())).count();
         long emDesenvolvimento = todas.stream().filter(t -> "EM_DESENVOLVIMENTO".equalsIgnoreCase(t.getStatus())).count();
@@ -78,19 +78,20 @@ public class DashboardService {
 
         // Métricas financeiras
         LocalDateTime inicioMes = LocalDate.now().withDayOfMonth(1).atStartOfDay();
-        BigDecimal ganhosNoMes = vendaFotoRepository.sumGanhosNoMes(inicioMes);
-        BigDecimal aReceber = vendaFotoRepository.sumAReceber();
-        BigDecimal atrasados = vendaFotoRepository.sumAtrasados();
-        long visitasNaPagina = 324L; // Como no PDF (página 5)
+        BigDecimal ganhosNoMes = vendaFotoRepository.sumGanhosNoMes(tenantId, inicioMes);
+        BigDecimal aReceber = vendaFotoRepository.sumAReceber(tenantId);
+        BigDecimal atrasados = vendaFotoRepository.sumAtrasados(tenantId);
+        // Sem rastreamento de visitas implementado: nunca inventa números.
+        long visitasNaPagina = 0L;
 
         // Produção Mensal (Jan-Dez)
-        List<ProducaoMensalDto> producaoMensal = getProducaoMensalMock();
+        List<ProducaoMensalDto> producaoMensal = getProducaoMensal(todas, hoje.getYear());
 
         // Ranking de Colaboradores (Top 10)
         List<ColaboradorRankingDto> ranking = getRankingColaboradores(todas);
 
         // Últimas Vendas
-        List<VendaFoto> ultimasVendas = vendaFotoRepository.findTop10ByOrderByDataVendaDesc();
+        List<VendaFoto> ultimasVendas = vendaFotoRepository.findTop10ByTenantIdOrderByDataVendaDesc(tenantId);
 
         return DashboardStatsDto.builder()
                 .aFazer(aFazer)
@@ -110,37 +111,48 @@ public class DashboardService {
                 .build();
     }
 
-    private List<ProducaoMensalDto> getProducaoMensalMock() {
-        String[] meses = {"Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"};
-        String[] abrev = {"Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"};
-        int[] atendimentos = {0, 0, 3650, 3900, 3800, 3700, 3500, 0, 0, 0, 0, 0};
-        int[] concluidos = {0, 0, 3500, 3750, 3680, 3600, 3420, 0, 0, 0, 0, 0};
+    private static final String[] MESES = {"Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
+            "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"};
+    private static final String[] MESES_ABREV = {"Jan", "Fev", "Mar", "Abr", "Mai", "Jun",
+            "Jul", "Ago", "Set", "Out", "Nov", "Dez"};
 
+    /**
+     * Produção do ano calculada SOMENTE a partir das tarefas reais do tenant
+     * (por mês de entrega). Sem tarefas, todos os meses retornam 0.
+     */
+    private List<ProducaoMensalDto> getProducaoMensal(List<Tarefa> tarefas, int ano) {
+        int[] atendimentos = new int[12];
+        int[] concluidos = new int[12];
+        for (Tarefa t : tarefas) {
+            LocalDate entrega = t.getDataEntrega();
+            if (entrega == null || entrega.getYear() != ano) continue;
+            int m = entrega.getMonthValue() - 1;
+            atendimentos[m]++;
+            if ("CONCLUIDA".equalsIgnoreCase(t.getStatus())) concluidos[m]++;
+        }
         List<ProducaoMensalDto> lista = new ArrayList<>();
         for (int i = 0; i < 12; i++) {
             lista.add(ProducaoMensalDto.builder()
-                    .mes(meses[i])
-                    .mesAbreviado(abrev[i])
-                    .atendimentos(atendimentos[i])
-                    .concluidos(concluidos[i])
+                    .mes(MESES[i]).mesAbreviado(MESES_ABREV[i])
+                    .atendimentos(atendimentos[i]).concluidos(concluidos[i])
                     .build());
         }
         return lista;
     }
 
+    /** Top 10 por tarefas concluídas, contando os responsáveis reais das tarefas do tenant. Sem dados: lista vazia. */
     private List<ColaboradorRankingDto> getRankingColaboradores(List<Tarefa> tarefas) {
-        // Base com dados do PDF (Página 4)
-        List<ColaboradorRankingDto> ranking = new ArrayList<>();
-        ranking.add(new ColaboradorRankingDto("OSMAR ISRAEL PEREIRA MENDES", 625L, "Editor Chefe & Diretor", null));
-        ranking.add(new ColaboradorRankingDto("ANTONIO AURELIO CARNEIRO DOS SANTOS", 448L, "Filmmaker & Produtor", null));
-        ranking.add(new ColaboradorRankingDto("HUMBERTO NASCIMENTO DA SILVA", 364L, "Fotógrafo Sênior", null));
-        ranking.add(new ColaboradorRankingDto("REBECA MAGALHÃES ARAÚJO", 290L, "Motion Designer", null));
-        ranking.add(new ColaboradorRankingDto("MAIARA CALLIND SANDES", 214L, "Social Media & Roteirista", null));
-        ranking.add(new ColaboradorRankingDto("SÁVILO SILVA MATTA SANTANA", 182L, "Editor de Reels", null));
-        ranking.add(new ColaboradorRankingDto("ANTONIO GUSA DO NASCIMENTO F.", 164L, "Assistente de Gravação", null));
-        ranking.add(new ColaboradorRankingDto("WYTHCEL CARVALHO OLIVEIRA", 126L, "Designer Gráfico", null));
-        ranking.add(new ColaboradorRankingDto("WALTER BERNARDO DE SOUZA JÚNIOR", 92L, "Operador de Áudio", null));
-        ranking.add(new ColaboradorRankingDto("YAINARIS CHAVEZ OCHOA", 80L, "Assistente de Produção", null));
-        return ranking;
+        Map<String, Long> porColaborador = new HashMap<>();
+        for (Tarefa t : tarefas) {
+            if (!"CONCLUIDA".equalsIgnoreCase(t.getStatus()) || t.getResponsaveis() == null) continue;
+            for (String nome : t.getResponsaveis()) {
+                if (nome != null && !nome.isBlank()) porColaborador.merge(nome.trim(), 1L, Long::sum);
+            }
+        }
+        return porColaborador.entrySet().stream()
+                .sorted(Map.Entry.<String, Long>comparingByValue().reversed().thenComparing(Map.Entry.comparingByKey()))
+                .limit(10)
+                .map(e -> new ColaboradorRankingDto(e.getKey(), e.getValue(), null, null))
+                .toList();
     }
 }

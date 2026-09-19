@@ -3,6 +3,7 @@ package com.designart.service;
 import com.designart.dto.RelatorioMensalItemDto;
 import com.designart.model.Tarefa;
 import com.designart.repository.TarefaRepository;
+import com.designart.tenant.TenantContext;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -19,7 +20,7 @@ public class RelatorioService {
 
     @Transactional(readOnly = true)
     public List<RelatorioMensalItemDto> gerarRelatorioMensal(String loja, Integer mes, Integer ano) {
-        List<Tarefa> tarefas = tarefaRepository.findAll();
+        List<Tarefa> tarefas = tarefaRepository.findAllByTenantId(TenantContext.require());
 
         return tarefas.stream()
                 .filter(t -> {
@@ -44,7 +45,7 @@ public class RelatorioService {
                             .tarefaId(t.getId())
                             .tituloDemanda(t.getTitulo())
                             .loja(t.getLoja())
-                            .criadorNome(t.getCriadorNome() != null ? t.getCriadorNome() : "Lucas Matheus")
+                            .criadorNome(t.getCriadorNome())
                             .participantes(t.getResponsaveis() != null ? new ArrayList<>(t.getResponsaveis()) : List.of())
                             .status(t.getStatus())
                             .prioridade(t.getPrioridade())

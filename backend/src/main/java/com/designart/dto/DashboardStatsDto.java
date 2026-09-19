@@ -16,6 +16,7 @@ import java.util.List;
 @AllArgsConstructor
 public class DashboardStatsDto {
     // Contadores de Status das Tarefas (Página 1)
+    @lombok.Getter(onMethod_ = @com.fasterxml.jackson.annotation.JsonProperty("aFazer"))
     private long aFazer;
     private long emDesenvolvimento;
     private long emRevisaoOuNaoHomologada;
@@ -25,6 +26,7 @@ public class DashboardStatsDto {
 
     // Métricas Financeiras (Página 5)
     private BigDecimal ganhosNoMes;
+    @lombok.Getter(onMethod_ = @com.fasterxml.jackson.annotation.JsonProperty("aReceber"))
     private BigDecimal aReceber;
     private BigDecimal atrasados;
     private long visitasNaPagina;

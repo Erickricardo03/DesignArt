@@ -2,10 +2,12 @@ package com.designart.service;
 
 import com.designart.dto.ChecklistItemDto;
 import com.designart.dto.TarefaDto;
+import com.designart.exception.ResourceNotFoundException;
 import com.designart.model.Tarefa;
 import com.designart.model.TarefaChecklistItem;
-import com.designart.repository.TarefaChecklistItemRepository;
+import com.designart.repository.ClienteRepository;
 import com.designart.repository.TarefaRepository;
+import com.designart.tenant.TenantContext;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -21,33 +23,37 @@ import java.util.stream.Collectors;
 public class TarefaService {
 
     private final TarefaRepository tarefaRepository;
-    private final TarefaChecklistItemRepository checklistItemRepository;
+    private final ClienteRepository clienteRepository;
 
     @Transactional(readOnly = true)
     public List<TarefaDto> listarTodas(String loja, String status, String prioridade) {
+        Long tenantId = TenantContext.require();
         List<Tarefa> tarefas;
         if ((loja != null && !loja.isBlank()) || (status != null && !status.isBlank()) || (prioridade != null && !prioridade.isBlank())) {
             tarefas = tarefaRepository.searchTarefas(
+                    tenantId,
                     (loja != null && !loja.isBlank()) ? loja : null,
                     (status != null && !status.isBlank()) ? status : null,
                     (prioridade != null && !prioridade.isBlank()) ? prioridade : null
             );
         } else {
-            tarefas = tarefaRepository.findAllByOrderByDataCriacaoDesc();
+            tarefas = tarefaRepository.findAllByTenantIdOrderByDataCriacaoDesc(tenantId);
         }
         return tarefas.stream().map(this::toDto).collect(Collectors.toList());
     }
 
     @Transactional(readOnly = true)
     public TarefaDto buscarPorId(Long id) {
-        Tarefa tarefa = tarefaRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Tarefa não encontrada com ID: " + id));
-        return toDto(tarefa);
+        return toDto(carregar(id));
     }
 
     @Transactional
     public TarefaDto criar(TarefaDto dto) {
+        Long tenantId = TenantContext.require();
+        validarCliente(dto.getClienteId(), tenantId);
+
         Tarefa tarefa = Tarefa.builder()
+                .tenantId(tenantId)
                 .titulo(dto.getTitulo())
                 .descricao(dto.getDescricao())
                 .briefing(dto.getBriefing())
@@ -63,33 +69,23 @@ public class TarefaService {
                 .build();
 
         if (dto.getChecklist() != null && !dto.getChecklist().isEmpty()) {
-            List<TarefaChecklistItem> itens = new ArrayList<>();
-            for (int i = 0; i < dto.getChecklist().size(); i++) {
-                ChecklistItemDto itemDto = dto.getChecklist().get(i);
-                itens.add(TarefaChecklistItem.builder()
-                        .descricao(itemDto.getDescricao())
-                        .concluido(Boolean.TRUE.equals(itemDto.getConcluido()))
-                        .ordem(itemDto.getOrdem() != null ? itemDto.getOrdem() : i + 1)
-                        .tarefa(tarefa)
-                        .build());
-            }
-            tarefa.setChecklist(itens);
+            tarefa.setChecklist(construirChecklist(tarefa, dto.getChecklist()));
         }
 
-        Tarefa saved = tarefaRepository.save(tarefa);
-        return toDto(saved);
+        return toDto(tarefaRepository.save(tarefa));
     }
 
     @Transactional
     public TarefaDto atualizar(Long id, TarefaDto dto) {
-        Tarefa tarefa = tarefaRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Tarefa não encontrada com ID: " + id));
+        Tarefa tarefa = carregar(id);
+        Long tenantId = tarefa.getTenantId();
 
         tarefa.setTitulo(dto.getTitulo());
         tarefa.setDescricao(dto.getDescricao());
         tarefa.setBriefing(dto.getBriefing());
         tarefa.setLoja(dto.getLoja());
         if (dto.getClienteId() != null) {
+            validarCliente(dto.getClienteId(), tenantId);
             tarefa.setClienteId(dto.getClienteId());
         }
         tarefa.setStatus(dto.getStatus());
@@ -103,38 +99,31 @@ public class TarefaService {
             tarefa.setResponsaveis(new ArrayList<>(dto.getResponsaveis()));
         }
 
-        // Atualiza checklist se fornecido
+        // Atualiza checklist se fornecido (itens novos herdam o tenant da tarefa)
         if (dto.getChecklist() != null) {
             tarefa.getChecklist().clear();
-            for (int i = 0; i < dto.getChecklist().size(); i++) {
-                ChecklistItemDto itemDto = dto.getChecklist().get(i);
-                tarefa.getChecklist().add(TarefaChecklistItem.builder()
-                        .descricao(itemDto.getDescricao())
-                        .concluido(Boolean.TRUE.equals(itemDto.getConcluido()))
-                        .ordem(itemDto.getOrdem() != null ? itemDto.getOrdem() : i + 1)
-                        .tarefa(tarefa)
-                        .build());
-            }
+            tarefa.getChecklist().addAll(construirChecklist(tarefa, dto.getChecklist()));
         }
 
         if ("CONCLUIDA".equalsIgnoreCase(dto.getStatus()) && tarefa.getDataConclusao() == null) {
             tarefa.setDataConclusao(LocalDateTime.now());
         }
 
-        Tarefa saved = tarefaRepository.save(tarefa);
-        return toDto(saved);
+        return toDto(tarefaRepository.save(tarefa));
     }
 
     @Transactional
     public TarefaDto toggleChecklistItem(Long tarefaId, Long itemId) {
-        Tarefa tarefa = tarefaRepository.findById(tarefaId)
-                .orElseThrow(() -> new RuntimeException("Tarefa não encontrada com ID: " + tarefaId));
+        Tarefa tarefa = carregar(tarefaId);
 
-        TarefaChecklistItem item = checklistItemRepository.findById(itemId)
-                .orElseThrow(() -> new RuntimeException("Item de checklist não encontrado com ID: " + itemId));
+        // O item é procurado DENTRO da tarefa (já filtrada por tenant): um
+        // itemId de outra tarefa/tenant simplesmente não é encontrado.
+        TarefaChecklistItem item = tarefa.getChecklist().stream()
+                .filter(i -> itemId != null && itemId.equals(i.getId()))
+                .findFirst()
+                .orElseThrow(() -> new ResourceNotFoundException("Item de checklist não encontrado com ID: " + itemId));
 
         item.setConcluido(!Boolean.TRUE.equals(item.getConcluido()));
-        checklistItemRepository.save(item);
 
         // Se todos os itens foram concluídos, pode marcar como Concluído
         boolean allDone = tarefa.getChecklist().stream().allMatch(i -> Boolean.TRUE.equals(i.getConcluido()));
@@ -146,14 +135,12 @@ public class TarefaService {
             tarefa.setDataConclusao(null);
         }
 
-        Tarefa saved = tarefaRepository.save(tarefa);
-        return toDto(saved);
+        return toDto(tarefaRepository.save(tarefa));
     }
 
     @Transactional
     public TarefaDto atualizarStatus(Long id, String novoStatus) {
-        Tarefa tarefa = tarefaRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Tarefa não encontrada com ID: " + id));
+        Tarefa tarefa = carregar(id);
 
         tarefa.setStatus(novoStatus);
         if ("CONCLUIDA".equalsIgnoreCase(novoStatus)) {
@@ -166,13 +153,46 @@ public class TarefaService {
             tarefa.setDataConclusao(null);
         }
 
-        Tarefa saved = tarefaRepository.save(tarefa);
-        return toDto(saved);
+        return toDto(tarefaRepository.save(tarefa));
     }
 
     @Transactional
     public void deletar(Long id) {
-        tarefaRepository.deleteById(id);
+        if (tarefaRepository.deleteByIdAndTenantId(id, TenantContext.require()) == 0) {
+            throw naoEncontrada(id);
+        }
+    }
+
+    /** Única porta de entrada para carregar uma tarefa por ID: sempre filtrada pelo tenant atual. */
+    private Tarefa carregar(Long id) {
+        return tarefaRepository.findByIdAndTenantId(id, TenantContext.require())
+                .orElseThrow(() -> naoEncontrada(id));
+    }
+
+    private ResourceNotFoundException naoEncontrada(Long id) {
+        return new ResourceNotFoundException("Tarefa não encontrada com ID: " + id);
+    }
+
+    /** Impede associar uma tarefa a um cliente de outro tenant (ou inexistente). */
+    private void validarCliente(Long clienteId, Long tenantId) {
+        if (clienteId != null && !clienteRepository.existsByIdAndTenantId(clienteId, tenantId)) {
+            throw new ResourceNotFoundException("Cliente não encontrado com ID: " + clienteId);
+        }
+    }
+
+    private List<TarefaChecklistItem> construirChecklist(Tarefa tarefa, List<ChecklistItemDto> itensDto) {
+        List<TarefaChecklistItem> itens = new ArrayList<>();
+        for (int i = 0; i < itensDto.size(); i++) {
+            ChecklistItemDto itemDto = itensDto.get(i);
+            itens.add(TarefaChecklistItem.builder()
+                    .tenantId(tarefa.getTenantId())
+                    .descricao(itemDto.getDescricao())
+                    .concluido(Boolean.TRUE.equals(itemDto.getConcluido()))
+                    .ordem(itemDto.getOrdem() != null ? itemDto.getOrdem() : i + 1)
+                    .tarefa(tarefa)
+                    .build());
+        }
+        return itens;
     }
 
     public TarefaDto toDto(Tarefa tarefa) {

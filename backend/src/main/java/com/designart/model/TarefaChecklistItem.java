@@ -19,6 +19,13 @@ public class TarefaChecklistItem {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    // Tenant dono deste item (denormalizado do pai Tarefa de propósito: existe
+    // um endpoint que mexe em checklist sem recarregar o tenant da tarefa, e
+    // isolamento não pode depender de sempre lembrar de seguir a FK do pai).
+    @Column(name = "tenant_id", nullable = false)
+    @com.fasterxml.jackson.annotation.JsonIgnore
+    private Long tenantId;
+
     @Column(nullable = false)
     private String descricao;
 

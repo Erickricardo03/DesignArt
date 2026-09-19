@@ -22,6 +22,12 @@ public class Despesa {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    // Tenant dono deste registro. NUNCA aceito diretamente do cliente/DTO —
+    // sempre atribuído pelo service a partir de TenantContext.require().
+    @Column(name = "tenant_id", nullable = false)
+    @com.fasterxml.jackson.annotation.JsonIgnore
+    private Long tenantId;
+
     @Column(nullable = false)
     private String descricao;
 

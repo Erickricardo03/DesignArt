@@ -19,12 +19,20 @@ import {
   ConfiguracaoLoja,
   AtividadeHistorico,
   SaudeFinanceira,
+  Avaliacao,
 } from '../models';
+import { IMockStorage } from './mock-storage.contract';
 
+/**
+ * Implementação de DESENVOLVIMENTO: contém os dados fictícios completos.
+ * Em builds de produção, o `angular.json` troca este arquivo inteiro pelo
+ * stub sem dados de `mock-storage.service.prod.ts` via `fileReplacements` —
+ * portanto nada aqui é compilado no bundle de produção.
+ */
 @Injectable({
   providedIn: 'root',
 })
-export class MockStorageService {
+export class MockStorageService implements IMockStorage {
   private readonly STORAGE_KEY = 'designart_mock_db_v2';
 
   private db: {
@@ -41,6 +49,7 @@ export class MockStorageService {
     municipios: Municipio[];
     configLoja: ConfiguracaoLoja;
     historico: AtividadeHistorico[];
+    avaliacoes: Avaliacao[];
   };
 
   constructor() {
@@ -52,7 +61,11 @@ export class MockStorageService {
       const saved = localStorage.getItem(this.STORAGE_KEY);
       if (saved) {
         try {
-          return JSON.parse(saved);
+          const parsed = JSON.parse(saved);
+          if (!parsed.avaliacoes) {
+            parsed.avaliacoes = this.getSeedData().avaliacoes;
+          }
+          return parsed;
         } catch (e) {
           console.warn('Erro ao restaurar DB local, reinicializando com dados padrão');
         }
@@ -408,6 +421,52 @@ export class MockStorageService {
     const idx = this.db.colaboradores.findIndex((c) => c.id === id);
     if (idx !== -1) {
       this.db.colaboradores.splice(idx, 1);
+      this.save();
+      return true;
+    }
+    return false;
+  }
+
+  // === AVALIAÇÕES DE CLIENTES (Depoimentos da Landing Page) ===
+  getAvaliacoes(apenasAtivas = false): Avaliacao[] {
+    const lista = [...this.db.avaliacoes];
+    return apenasAtivas ? lista.filter((a) => a.ativo) : lista;
+  }
+
+  createAvaliacao(avaliacao: Partial<Avaliacao>): Avaliacao {
+    const newId = (this.db.avaliacoes.reduce((max, a) => Math.max(max, a.id || 0), 0) || 0) + 1;
+    const nova: Avaliacao = {
+      id: newId,
+      clienteNome: avaliacao.clienteNome || 'Cliente',
+      cargoEmpresa: avaliacao.cargoEmpresa || '',
+      texto: avaliacao.texto || '',
+      nota: avaliacao.nota !== undefined ? Number(avaliacao.nota) : 5,
+      ativo: avaliacao.ativo !== undefined ? avaliacao.ativo : true,
+      dataCriacao: new Date().toISOString(),
+    };
+    this.db.avaliacoes.unshift(nova);
+    this.registrarAtividade('NOVA AVALIAÇÃO', `Cadastrou a avaliação de "${nova.clienteNome}"`);
+    this.save();
+    return nova;
+  }
+
+  updateAvaliacao(id: number, avaliacao: Partial<Avaliacao>): Avaliacao {
+    const idx = this.db.avaliacoes.findIndex((a) => a.id === id);
+    if (idx !== -1) {
+      this.db.avaliacoes[idx] = { ...this.db.avaliacoes[idx], ...avaliacao };
+      this.registrarAtividade('EDITOU AVALIAÇÃO', `Editou a avaliação de "${this.db.avaliacoes[idx].clienteNome}"`);
+      this.save();
+      return this.db.avaliacoes[idx];
+    }
+    throw new Error('Avaliação não encontrada');
+  }
+
+  deleteAvaliacao(id: number): boolean {
+    const idx = this.db.avaliacoes.findIndex((a) => a.id === id);
+    if (idx !== -1) {
+      const removida = this.db.avaliacoes[idx];
+      this.db.avaliacoes.splice(idx, 1);
+      this.registrarAtividade('EXCLUIU AVALIAÇÃO', `Excluiu a avaliação de "${removida.clienteNome}"`);
       this.save();
       return true;
     }
@@ -1373,6 +1432,44 @@ export class MockStorageService {
           colaboradorEmail: 'igors4ntos8121@gmail.com',
           acao: 'ALTEROU STATUS DA TAREFA',
           informacoesAdicionais: 'Alterou status de "Promo" de "Concluido" para "Concluido"',
+        },
+      ],
+      avaliacoes: [
+        {
+          id: 1,
+          clienteNome: 'Thaysa Wanderley',
+          cargoEmpresa: 'CEO, Ateliê da Ysa',
+          texto: 'A Designarte organizou nossa comunicação e transformou completamente a forma como nos posicionamos e vendemos online.',
+          nota: 5,
+          ativo: true,
+          dataCriacao: '2026-01-10T10:00:00Z',
+        },
+        {
+          id: 2,
+          clienteNome: 'Leo e Adrielle',
+          cargoEmpresa: 'CEOs, VivaMais',
+          texto: 'O time uniu estratégia comercial e estética de forma incrível. Cada entrega superava as nossas expectativas de qualidade.',
+          nota: 5,
+          ativo: true,
+          dataCriacao: '2026-01-12T10:00:00Z',
+        },
+        {
+          id: 3,
+          clienteNome: 'Alexandro Junior',
+          cargoEmpresa: 'CEO, Sr. Junior',
+          texto: 'Eles entenderam a alma da nossa marca e criaram uma presença digital elegante, clara, consistente e altamente conversível.',
+          nota: 5,
+          ativo: true,
+          dataCriacao: '2026-01-15T10:00:00Z',
+        },
+        {
+          id: 4,
+          clienteNome: 'Erico e Ana',
+          cargoEmpresa: 'CEO, Drogaria Central',
+          texto: 'Eles entenderam a alma da nossa marca e criaram uma presença digital elegante',
+          nota: 5,
+          ativo: true,
+          dataCriacao: '2026-01-18T10:00:00Z',
         },
       ],
       tarefas: [

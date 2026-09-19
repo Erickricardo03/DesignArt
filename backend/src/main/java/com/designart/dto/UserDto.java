@@ -5,6 +5,8 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.util.Set;
+
 @Data
 @Builder
 @NoArgsConstructor
@@ -16,4 +18,6 @@ public class UserDto {
     private String email;
     private String cargo;
     private String role;
+    private Set<String> permissoes;
+    private Boolean ativo;
 }

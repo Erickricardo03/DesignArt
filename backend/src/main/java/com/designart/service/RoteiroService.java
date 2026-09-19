@@ -1,7 +1,9 @@
 package com.designart.service;
 
+import com.designart.exception.ResourceNotFoundException;
 import com.designart.model.Roteiro;
 import com.designart.repository.RoteiroRepository;
+import com.designart.tenant.TenantContext;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -17,20 +19,23 @@ public class RoteiroService {
 
     @Transactional(readOnly = true)
     public List<Roteiro> listarTodos(String loja) {
+        Long tenantId = TenantContext.require();
         if (loja != null && !loja.isBlank()) {
-            return roteiroRepository.findByLojaIgnoreCase(loja);
+            return roteiroRepository.findByTenantIdAndLojaIgnoreCase(tenantId, loja);
         }
-        return roteiroRepository.findAllByOrderByDataCriacaoDesc();
+        return roteiroRepository.findAllByTenantIdOrderByDataCriacaoDesc(tenantId);
     }
 
     @Transactional(readOnly = true)
     public Roteiro buscarPorId(Long id) {
-        return roteiroRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Roteiro não encontrado com ID: " + id));
+        return roteiroRepository.findByIdAndTenantId(id, TenantContext.require())
+                .orElseThrow(() -> new ResourceNotFoundException("Roteiro não encontrado com ID: " + id));
     }
 
     @Transactional
     public Roteiro criar(Roteiro roteiro) {
+        roteiro.setId(null);
+        roteiro.setTenantId(TenantContext.require());
         roteiro.setDataCriacao(LocalDateTime.now());
         if (roteiro.getStatus() == null) {
             roteiro.setStatus("PENDENTE");
@@ -64,6 +69,8 @@ public class RoteiroService {
 
     @Transactional
     public void deletar(Long id) {
-        roteiroRepository.deleteById(id);
+        if (roteiroRepository.deleteByIdAndTenantId(id, TenantContext.require()) == 0) {
+            throw new ResourceNotFoundException("Roteiro não encontrado com ID: " + id);
+        }
     }
 }
