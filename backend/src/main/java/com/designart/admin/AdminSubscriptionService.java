@@ -46,6 +46,13 @@ public class AdminSubscriptionService {
                 .orElseThrow(() -> new ResourceNotFoundException("Este tenant ainda não possui assinatura."));
     }
 
+    /** Como {@link #getSubscription}, mas sem exceção quando não há assinatura (não marca a transação como rollback-only). */
+    @Transactional(readOnly = true)
+    public java.util.Optional<SubscriptionDto> findSubscription(Long tenantId) {
+        exigirTenant(tenantId);
+        return subscriptionRepository.findByTenantId(tenantId).map(this::toDto);
+    }
+
     /** Cria ou substitui (PUT) a assinatura corrente do tenant. */
     @Transactional
     public SubscriptionDto upsertSubscription(Long tenantId, SubscriptionRequest req) {

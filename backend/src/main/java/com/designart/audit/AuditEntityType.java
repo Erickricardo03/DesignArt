@@ -8,5 +8,6 @@ public enum AuditEntityType {
     FEATURE,
     SUBSCRIPTION,
     INVOICE,
-    PAYMENT
+    PAYMENT,
+    SUPPORT_SESSION
 }

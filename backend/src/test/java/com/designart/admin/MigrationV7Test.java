@@ -26,7 +26,8 @@ class MigrationV7Test {
             "V4__audit_events.sql", 2109276943,
             "V5__user_action_tokens.sql", -447843649,
             "V6__plans_subscriptions_and_entitlements.sql", 1065986832,
-            "V7__billing_invoices_and_payment_history.sql", 1743877123);
+            "V7__billing_invoices_and_payment_history.sql", 1743877123,
+            "V8__support_sessions_and_observability.sql", 1452444455);
 
     static int checksum(Path file) throws IOException {
         CRC32 crc = new CRC32();
@@ -52,6 +53,18 @@ class MigrationV7Test {
     }
 
     @Test
+    void v8DefineSessoesDeSuporteEIncidentesComRestricoesFortes() throws IOException {
+        String sql = Files.readAllLines(DIR.resolve("V8__support_sessions_and_observability.sql")).stream()
+                .filter(l -> !l.trim().startsWith("--")).collect(java.util.stream.Collectors.joining(" ")).toLowerCase();
+        assertThat(sql).contains("create table support_sessions").contains("create table application_error_events")
+                .contains("support_sessions_one_active_key").contains("support_sessions_expiry_chk").contains("support_sessions_reason_chk")
+                .contains("aee_open_fingerprint_key").contains("aee_path_chk").contains("support_sessions_guard");
+        // não guarda segredo de sessão, corpo de requisição nem stack trace
+        assertThat(sql).doesNotContain("token").doesNotContain("password").doesNotContain("stack").doesNotContain("request_body")
+                .doesNotContain("query_string").doesNotContain("cookie").doesNotContain("header");
+    }
+
+    @Test
     void v7ExisteENaoUsaTiposImprecisosParaDinheiro() throws IOException {
         Path v7 = DIR.resolve("V7__billing_invoices_and_payment_history.sql");
         assertThat(v7).exists();
@@ -61,9 +74,9 @@ class MigrationV7Test {
                 .doesNotContain(" float").doesNotContain(" double").doesNotContain(" real").doesNotContain("money");
         assertThat(sql).contains("billing_invoices_paid_chk").contains("billing_invoices_canceled_chk")
                 .contains("billing_invoices_amount_chk").contains("billing_invoices_period_key");
-        // só existem V1..V7 (nenhuma migration paralela)
+        // só existem V1..V8 (V8 é a última; nenhuma migration paralela)
         try (var files = Files.list(DIR)) {
-            assertThat(files.map(p -> p.getFileName().toString()).filter(n -> n.startsWith("V")).count()).isEqualTo(7);
+            assertThat(files.map(p -> p.getFileName().toString()).filter(n -> n.startsWith("V")).count()).isEqualTo(8);
         }
     }
 }

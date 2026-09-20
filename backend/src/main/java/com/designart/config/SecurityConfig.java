@@ -38,6 +38,7 @@ import java.util.List;
 public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthFilter;
+    private final com.designart.observability.ErrorCaptureFilter errorCaptureFilter;
 
     @Bean
     public PasswordEncoder passwordEncoder() {
@@ -116,7 +117,9 @@ public class SecurityConfig {
                 // por tenant (ex: landing por domínio) ficam para uma fase futura.
                 .anyRequest().authenticated()
             )
-            .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
+            .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class)
+            // Captura de erros 5xx: DEPOIS do JWT (TenantContext/SecurityContext/SupportContext ainda preenchidos).
+            .addFilterAfter(errorCaptureFilter, JwtAuthenticationFilter.class);
 
         return http.build();
     }
@@ -127,7 +130,7 @@ public class SecurityConfig {
         configuration.setAllowedOriginPatterns(List.of("*"));
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(Arrays.asList("Authorization", "Content-Type", "X-Requested-With", "Accept", "Origin", "Access-Control-Request-Method", "Access-Control-Request-Headers"));
-        configuration.setExposedHeaders(List.of("Authorization"));
+        configuration.setExposedHeaders(List.of("Authorization", "X-Request-Id"));
         configuration.setAllowCredentials(true);
         configuration.setMaxAge(3600L);
 

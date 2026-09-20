@@ -35,7 +35,10 @@ class TenantStructureGuardTest {
             // O ControlPlaneStructureGuardTest garante que só esses pacotes acessam seus repositories.
             "Subscription", "TenantFeatureOverride", "TenantBranding",
             // Financeiro SaaS (Fase 4.4.2): também plano de controle (SUPER_ADMIN); guardado pelo ControlPlaneStructureGuardTest.
-            "Invoice", "InvoicePayment"
+            "Invoice", "InvoicePayment",
+            // Modo Suporte e observabilidade (Fase 4.4.3): plano de controle (SUPER_ADMIN). O alvo/tenant vem da Support
+            // Session validada, nunca do cliente; guardado pelo SupportStructureGuardTest.
+            "SupportSession", "ApplicationErrorEvent"
     );
 
     @Autowired EntityManager entityManager;

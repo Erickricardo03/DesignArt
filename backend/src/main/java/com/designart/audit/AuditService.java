@@ -70,6 +70,19 @@ public class AuditService {
         }
     }
 
+    /** Evento de NEGAÇÃO (outcome DENIED) em transação independente; nunca propaga erro de gravação. */
+    public void deniedIndependent(AuditAction action, AuditActor actor, AuditTarget target, AuditMetadata metadata) {
+        try {
+            TransactionTemplate template = new TransactionTemplate(transactionManager);
+            template.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
+            template.executeWithoutResult(status ->
+                    repository.save(build(action, AuditOutcome.DENIED, actor, target, metadata)));
+        } catch (RuntimeException e) {
+            log.error("Falha ao gravar evento de auditoria {} ({}). A operação principal segue.",
+                    action, e.getClass().getSimpleName());
+        }
+    }
+
     private AuditEvent build(AuditAction action, AuditOutcome outcome, AuditActor actor, AuditTarget target,
                              AuditMetadata metadata) {
         HttpServletRequest request = requisicaoAtual();

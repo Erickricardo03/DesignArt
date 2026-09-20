@@ -5,6 +5,8 @@ import com.designart.billing.InvoiceStatus;
 import com.designart.billing.OverrideEffect;
 import com.designart.billing.PaymentMethod;
 import com.designart.model.SuspensionReason;
+import com.designart.support.SupportMode;
+import com.designart.support.SupportOperation;
 import com.designart.billing.SubscriptionStatus;
 import com.designart.model.TenantStatus;
 import com.designart.security.Role;
@@ -151,6 +153,18 @@ public final class AuditMetadata {
         /** Motivo da suspensão (nulo = não estava suspenso). */
         public Builder suspensionReason(SuspensionReason reason) {
             fragments.put("suspensionReason", quote(reason));
+            return this;
+        }
+
+        /** Modo da sessão de suporte (enum). */
+        public Builder supportMode(SupportMode mode) {
+            fragments.put("supportMode", quote(mode));
+            return this;
+        }
+
+        /** Operação da allowlist de suporte (enum): nunca texto livre. */
+        public Builder supportOperation(SupportOperation operation) {
+            fragments.put("supportOperation", quote(operation));
             return this;
         }
 

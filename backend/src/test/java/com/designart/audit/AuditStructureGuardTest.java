@@ -61,7 +61,7 @@ class AuditStructureGuardTest {
         }
         List<String> publicos = Arrays.stream(AuditService.class.getDeclaredMethods())
                 .filter(m -> Modifier.isPublic(m.getModifiers())).map(Method::getName).toList();
-        assertThat(publicos).containsExactlyInAnyOrder("success", "failureIndependent");
+        assertThat(publicos).containsExactlyInAnyOrder("success", "failureIndependent", "deniedIndependent");
     }
 
     @Test
